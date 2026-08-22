@@ -12,9 +12,8 @@ navigationCompose = "2.8.3"
 room = "2.6.1"
 datastore = "1.1.1"
 camera = "1.4.0"
-mapsCompose = "6.1.2"
+osmdroid = "6.1.20"
 playServicesLocation = "21.3.0"
-playServicesMaps = "19.0.0"
 composeIcons = "1.7.5"
 
 [libraries]
@@ -43,9 +42,8 @@ androidx-camera-core = { group = "androidx.camera", name = "camera-core", versio
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camera" }
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camera" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camera" }
-maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
+osmdroid-android = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
-play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

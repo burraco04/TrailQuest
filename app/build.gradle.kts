@@ -69,10 +69,9 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     
-    // Maps & Location
-    implementation(libs.maps.compose)
+    // OpenStreetMap & Location
+    implementation(libs.osmdroid.android)
     implementation(libs.play.services.location)
-    implementation(libs.play.services.maps)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

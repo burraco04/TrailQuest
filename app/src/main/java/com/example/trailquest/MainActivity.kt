@@ -101,6 +101,7 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                 }
             }
         ) {
+            // NavigationSuiteScaffold content lambda non ha parametri
             Scaffold(modifier = Modifier.fillMaxSize()) { paddingValues ->
                 NavHost(
                     navController = navController,
@@ -154,7 +155,6 @@ enum class AppDestinations(
     SETTINGS("Settings", Icons.Default.Settings, "settings"),
 }
 
-// Simple Factory for ViewModel (for demo purposes)
 class MainViewModelFactory(
     private val authRepository: AuthRepository,
     private val trailDao: com.example.trailquest.data.db.TrailDao,
