@@ -39,8 +39,10 @@ class MainViewModel(
         _searchQuery.value = query
     }
 
-    fun login(username: String) {
-        authRepository.login(username)
+    fun login(username: String, password: String) {
+        viewModelScope.launch {
+            authRepository.login(username, password)
+        }
     }
 
     fun logout() {
@@ -75,6 +77,7 @@ class MainViewModel(
 
     init {
         viewModelScope.launch {
+            authRepository.createTestUsers()
             trailDao.insertTrail(Trail("1", "Sentiero Azzurro", "Un bellissimo sentiero lungo la costa delle Cinque Terre.", "Facile", 12.0, 180, 50))
             trailDao.insertTrail(Trail("2", "Alta Via dei Monti Liguri", "Percorso impegnativo con panorami mozzafiato sul mare.", "Difficile", 25.0, 480, 150))
             trailDao.insertTrail(Trail("3", "Sentiero del Pellegrino", "Un percorso storico tra Noli e Varigotti.", "Medio", 8.5, 120, 75))

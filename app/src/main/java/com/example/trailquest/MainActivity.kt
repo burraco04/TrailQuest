@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
             AppDatabase::class.java, "trailquest-db"
         ).build()
         
-        val authRepository = AuthRepository()
+        val authRepository = AuthRepository(db.userDao())
         val settingsRepository = SettingsRepository(applicationContext)
         
         enableEdgeToEdge()
@@ -52,7 +52,11 @@ class MainActivity : ComponentActivity() {
 
             TrailQuestTheme(darkTheme = isDarkMode) {
                 if (currentUser == null) {
-                    LoginScreen(onLogin = { viewModel.login(it) })
+                    LoginScreen(
+                        onLogin = { username, password ->
+                            viewModel.login(username, password)
+                        }
+                    )
                 } else {
                     TrailQuestApp(viewModel)
                 }
