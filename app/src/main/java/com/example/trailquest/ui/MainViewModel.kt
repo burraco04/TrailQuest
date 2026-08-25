@@ -40,35 +40,24 @@ class MainViewModel(
     }
 
     fun login(
-    username: String,
-    password: String,
-    onResult: (Boolean) -> Unit
+        email: String,
+        password: String,
+        onResult: (Boolean) -> Unit
     ) {
         viewModelScope.launch {
-            val success = authRepository.login(
-                username,
-                password
-            )
-
-            onResult(success)
+            val result = authRepository.login(email, password)
+            onResult(result.isSuccess)
         }
     }
 
     fun register(
-        username: String,
         email: String,
         password: String,
         onResult: (Boolean) -> Unit
-
     ) {
         viewModelScope.launch {
-            val success = authRepository.createUser(
-                username = username,
-                email = email,
-                password = password
-            )
-
-            onResult(success)
+            val result = authRepository.signUp(email, password)
+            onResult(result.isSuccess)
         }
     }
 
@@ -104,7 +93,7 @@ class MainViewModel(
 
     init {
         viewModelScope.launch {
-            authRepository.createTestUsers()
+            // Initial data prep
             trailDao.insertTrail(Trail("1", "Sentiero Azzurro", "Un bellissimo sentiero lungo la costa delle Cinque Terre.", "Facile", 12.0, 180, 50))
             trailDao.insertTrail(Trail("2", "Alta Via dei Monti Liguri", "Percorso impegnativo con panorami mozzafiato sul mare.", "Difficile", 25.0, 480, 150))
             trailDao.insertTrail(Trail("3", "Sentiero del Pellegrino", "Un percorso storico tra Noli e Varigotti.", "Medio", 8.5, 120, 75))

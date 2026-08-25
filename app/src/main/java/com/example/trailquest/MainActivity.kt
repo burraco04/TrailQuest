@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
             AppDatabase::class.java, "trailquest-db"
         ).build()
         
-        val authRepository = AuthRepository(db.userDao())
+        val authRepository = AuthRepository()
         val settingsRepository = SettingsRepository(applicationContext)
         
         enableEdgeToEdge()
@@ -53,16 +53,15 @@ class MainActivity : ComponentActivity() {
             TrailQuestTheme(darkTheme = isDarkMode) {
                 if (currentUser == null) {
                     LoginScreen(
-                        onLogin = { username, password, onResult ->
+                        onLogin = { email, password, onResult ->
                             viewModel.login(
-                                username = username,
+                                email = email,
                                 password = password,
                                 onResult = onResult
                             )
                         },
-                        onRegister = { username, email, password, onResult ->
+                        onRegister = { email, password, onResult ->
                             viewModel.register(
-                                username = username,
                                 email = email,
                                 password = password,
                                 onResult = onResult
@@ -87,6 +86,7 @@ fun TrailQuestApp(viewModel: MainViewModel) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val totalPoints by viewModel.totalPoints.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
 
     var activeHikeTrail by remember { mutableStateOf<com.example.trailquest.data.model.Trail?>(null) }
 
@@ -117,7 +117,6 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                 }
             }
         ) {
-            // NavigationSuiteScaffold content lambda non ha parametri
             Scaffold(modifier = Modifier.fillMaxSize()) { paddingValues ->
                 NavHost(
                     navController = navController,
@@ -144,7 +143,7 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                     }
                     composable(AppDestinations.PROFILE.route) {
                         ProfileScreen(
-                            username = viewModel.currentUser.value?.username ?: "User",
+                            username = currentUser?.displayName ?: currentUser?.email ?: "User",
                             points = totalPoints ?: 0,
                             onLogout = { viewModel.logout() }
                         )

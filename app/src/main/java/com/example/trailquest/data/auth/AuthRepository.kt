@@ -1,98 +1,54 @@
 package com.example.trailquest.data.auth
 
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import java.security.MessageDigest
+import kotlinx.coroutines.tasks.await
 
-class AuthRepository(
-    private val userDao: UserDao
-) {
+data class AuthUser(val uid: String, val email: String, val displayName: String?)
 
-    private val _currentUser = MutableStateFlow<User?>(null)
-    val currentUser: StateFlow<User?> = _currentUser
+class AuthRepository {
+    private val firebaseAuth = FirebaseAuth.getInstance()
+    
+    private val _currentUser = MutableStateFlow<AuthUser?>(mapFirebaseUser(firebaseAuth.currentUser))
+    val currentUser: StateFlow<AuthUser?> = _currentUser
 
-    suspend fun login(
-        username: String,
-        password: String
-    ): Boolean {
-
-        if (username.isBlank() || password.isBlank()) {
-            return false
+    init {
+        firebaseAuth.addAuthStateListener { auth ->
+            _currentUser.value = mapFirebaseUser(auth.currentUser)
         }
+    }
 
-        val user = userDao.getUser(username.trim())
-            ?: return false
-
-        val passwordHash = hashPassword(password)
-
-        if (user.passwordHash != passwordHash) {
-            return false
+    private fun mapFirebaseUser(firebaseUser: FirebaseUser?): AuthUser? {
+        return firebaseUser?.let {
+            AuthUser(
+                uid = it.uid,
+                email = it.email ?: "",
+                displayName = it.displayName
+            )
         }
+    }
 
-        _currentUser.value = user
-        return true
+    suspend fun login(email: String, password: String): Result<Unit> {
+        return try {
+            firebaseAuth.signInWithEmailAndPassword(email, password).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun signUp(email: String, password: String): Result<Unit> {
+        return try {
+            firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     fun logout() {
-        _currentUser.value = null
-    }
-
-    suspend fun createUser(
-        username: String,
-        email: String,
-        password: String
-    ): Boolean {
-
-        val cleanUsername = username.trim()
-        val cleanEmail = email.trim()
-
-        if (
-            username.isBlank() ||
-            email.isBlank() ||
-            password.isBlank()
-        ) {
-            return false
-        }
-
-        if (userDao.getUser(username.trim()) != null) {
-            return false
-        }
-
-        val user = User(
-            username = username.trim(),
-            email = email.trim(),
-            passwordHash = hashPassword(password)
-        )
-
-        userDao.insertUser(user)
-
-        return true
-    }
-
-    suspend fun createTestUsers() {
-        if (userDao.getUserCount() > 0) {
-            return
-        }
-
-        createUser(
-            username = "simone",
-            email = "simone@trailquest.it",
-            password = "password123"
-        )
-
-        createUser(
-            username = "test",
-            email = "test@trailquest.it",
-            password = "test123"
-        )
-    }
-
-    private fun hashPassword(password: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hash = digest.digest(password.toByteArray())
-
-        return hash.joinToString("") {
-            "%02x".format(it)
-        }
+        firebaseAuth.signOut()
     }
 }
