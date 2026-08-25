@@ -39,9 +39,36 @@ class MainViewModel(
         _searchQuery.value = query
     }
 
-    fun login(username: String, password: String) {
+    fun login(
+    username: String,
+    password: String,
+    onResult: (Boolean) -> Unit
+    ) {
         viewModelScope.launch {
-            authRepository.login(username, password)
+            val success = authRepository.login(
+                username,
+                password
+            )
+
+            onResult(success)
+        }
+    }
+
+    fun register(
+        username: String,
+        email: String,
+        password: String,
+        onResult: (Boolean) -> Unit
+
+    ) {
+        viewModelScope.launch {
+            val success = authRepository.createUser(
+                username = username,
+                email = email,
+                password = password
+            )
+
+            onResult(success)
         }
     }
 

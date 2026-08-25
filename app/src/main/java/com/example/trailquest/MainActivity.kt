@@ -53,8 +53,20 @@ class MainActivity : ComponentActivity() {
             TrailQuestTheme(darkTheme = isDarkMode) {
                 if (currentUser == null) {
                     LoginScreen(
-                        onLogin = { username, password ->
-                            viewModel.login(username, password)
+                        onLogin = { username, password, onResult ->
+                            viewModel.login(
+                                username = username,
+                                password = password,
+                                onResult = onResult
+                            )
+                        },
+                        onRegister = { username, email, password, onResult ->
+                            viewModel.register(
+                                username = username,
+                                email = email,
+                                password = password,
+                                onResult = onResult
+                            )
                         }
                     )
                 } else {

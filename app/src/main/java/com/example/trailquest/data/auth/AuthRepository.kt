@@ -43,6 +43,9 @@ class AuthRepository(
         password: String
     ): Boolean {
 
+        val cleanUsername = username.trim()
+        val cleanEmail = email.trim()
+
         if (
             username.isBlank() ||
             email.isBlank() ||
