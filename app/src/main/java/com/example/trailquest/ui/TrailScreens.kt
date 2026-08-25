@@ -29,8 +29,7 @@ fun LoginScreen(
         String,
         String,
         (Boolean) -> Unit
-    ) -> Unit
-) {
+    ) -> Unit ) {
     var isRegistering by remember {
         mutableStateOf(false)
     }
