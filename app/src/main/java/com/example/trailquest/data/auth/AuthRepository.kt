@@ -39,9 +39,24 @@ class AuthRepository {
         }
     }
 
-    suspend fun signUp(email: String, password: String): Result<Unit> {
+    suspend fun signUp(
+        name: String,
+        email: String,
+        password: String
+    ): Result<Unit> {
         return try {
-            firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+            val result = firebaseAuth
+                .createUserWithEmailAndPassword(email, password)
+                .await()
+
+            result.user?.updateProfile(
+                com.google.firebase.auth.userProfileChangeRequest {
+                    displayName = name
+                }
+            )?.await()
+
+            _currentUser.value = mapFirebaseUser(firebaseAuth.currentUser)
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

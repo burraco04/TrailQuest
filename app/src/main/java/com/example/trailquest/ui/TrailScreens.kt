@@ -19,9 +19,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 @Composable
 fun LoginScreen(
     onLogin: (String, String, (Boolean) -> Unit) -> Unit,
-    onRegister: (String, String, (Boolean) -> Unit) -> Unit
+    onRegister: (String, String, String, (Boolean) -> Unit) -> Unit
 ) {
     var isRegistering by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -41,6 +42,21 @@ fun LoginScreen(
         )
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        if (isRegistering) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = {
+                    name = it
+                    message = ""
+                },
+                label = { Text("Nome") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         OutlinedTextField(
             value = email,
@@ -96,7 +112,7 @@ fun LoginScreen(
             onClick = {
                 if (isRegistering) {
                     when {
-                        email.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
+                        name.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
                             message = "Compila tutti i campi"
                             isError = true
                         }
@@ -113,7 +129,7 @@ fun LoginScreen(
                             isError = true
                         }
                         else -> {
-                            onRegister(email, password) { success ->
+                            onRegister(name, email, password) { success ->
                                 if (success) {
                                     message = "Registrazione completata!"
                                     isError = false
@@ -150,6 +166,7 @@ fun LoginScreen(
             onClick = {
                 isRegistering = !isRegistering
                 message = ""
+                name = ""
                 email = ""
                 password = ""
                 confirmPassword = ""
@@ -234,15 +251,203 @@ fun TrailDetailScreen(trail: Trail?, onStartHike: () -> Unit) {
 }
 
 @Composable
-fun ProfileScreen(username: String, points: Int, onLogout: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Profilo di $username", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(32.dp))
-        Text("Punti Totali: $points", style = MaterialTheme.typography.headlineSmall)
+fun ProfileScreen(
+    username: String,
+    email: String,
+    points: Int,
+    onLogout: () -> Unit
+) {
+    val level = when {
+        points >= 2000 -> 6
+        points >= 1000 -> 5
+        points >= 500 -> 4
+        points >= 250 -> 3
+        points >= 100 -> 2
+        else -> 1
+    }
+
+    val levelName = when (level) {
+        6 -> "Maestro dei sentieri"
+        5 -> "Esperto"
+        4 -> "Avventuriero"
+        3 -> "Escursionista"
+        2 -> "Camminatore"
+        else -> "Esploratore"
+    }
+
+    val nextLevelPoints = when {
+        points < 100 -> 100
+        points < 250 -> 250
+        points < 500 -> 500
+        points < 1000 -> 1000
+        points < 2000 -> 2000
+        else -> 2000
+    }
+
+    val previousLevelPoints = when {
+        points < 100 -> 0
+        points < 250 -> 100
+        points < 500 -> 250
+        points < 1000 -> 500
+        points < 2000 -> 1000
+        else -> 2000
+    }
+
+    val progress = if (level == 6) {
+        1f
+    } else {
+        ((points - previousLevelPoints).toFloat() /
+                (nextLevelPoints - previousLevelPoints))
+            .coerceIn(0f, 1f)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Profilo",
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "👤",
+            style = MaterialTheme.typography.displayMedium
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = username,
+            style = MaterialTheme.typography.headlineSmall
+        )
+
+        Text(
+            text = email,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                Text(
+                    text = "Livello $level",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Text(
+                    text = levelName,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = if (level == 6) {
+                        "$points punti"
+                    } else {
+                        "$points / $nextLevelPoints punti"
+                    }
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Badge Sbloccati: 🎖️ 🏆 🏔️")
+
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                Text(
+                    text = "Statistiche",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "0",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Text("Escursioni")
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "0 km",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Text("Distanza")
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "$points",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Text("Punti")
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                Text(
+                    text = "Badge",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Text("🥾")
+                    Text("🔒")
+                    Text("🔒")
+                    Text("🔒")
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.weight(1f))
-        Button(onClick = onLogout) {
+
+        Button(
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text("Logout")
         }
     }

@@ -51,12 +51,13 @@ class MainViewModel(
     }
 
     fun register(
+        name: String,
         email: String,
         password: String,
         onResult: (Boolean) -> Unit
     ) {
         viewModelScope.launch {
-            val result = authRepository.signUp(email, password)
+            val result = authRepository.signUp(name, email, password)
             onResult(result.isSuccess)
         }
     }

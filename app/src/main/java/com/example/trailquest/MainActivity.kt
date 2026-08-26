@@ -60,8 +60,9 @@ class MainActivity : ComponentActivity() {
                                 onResult = onResult
                             )
                         },
-                        onRegister = { email, password, onResult ->
+                        onRegister = { name, email, password, onResult ->
                             viewModel.register(
+                                name = name,
                                 email = email,
                                 password = password,
                                 onResult = onResult
@@ -143,7 +144,8 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                     }
                     composable(AppDestinations.PROFILE.route) {
                         ProfileScreen(
-                            username = currentUser?.displayName ?: currentUser?.email ?: "User",
+                            username = currentUser?.displayName ?: "User",
+                            email = currentUser?.email ?: "",
                             points = totalPoints ?: 0,
                             onLogout = { viewModel.logout() }
                         )
