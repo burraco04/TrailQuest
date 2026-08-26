@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.trailquest.data.model.Trail
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.material.icons.filled.ArrowBack
 
 @Composable
 fun LoginScreen(
@@ -185,44 +186,233 @@ fun TrailListScreen(
     onTrailClick: (Trail) -> Unit,
     onToggleFavorite: (Trail) -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    var selectedDifficulty by remember {
+        mutableStateOf("Tutti")
+    }
+
+    val filteredTrails = trails.filter { trail ->
+        selectedDifficulty == "Tutti" ||
+                trail.difficulty.equals(
+                    selectedDifficulty,
+                    ignoreCase = true
+                )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+
+        Text(
+            text = "Sentieri",
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
+
+        // Ricerca
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Cerca sentieri...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            placeholder = {
+                Text("Cerca sentieri...")
+            },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = "Cerca"
+                )
+            },
             singleLine = true
         )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            item {
-                Text("Sentieri Disponibili", style = MaterialTheme.typography.headlineSmall)
-                Spacer(modifier = Modifier.height(8.dp))
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        // Filtri difficoltà
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+
+            FilterChip(
+                selected = selectedDifficulty == "Tutti",
+                onClick = {
+                    selectedDifficulty = "Tutti"
+                },
+                label = {
+                    Text("Tutti")
+                }
+            )
+
+            FilterChip(
+                selected = selectedDifficulty == "Facile",
+                onClick = {
+                    selectedDifficulty = "Facile"
+                },
+                label = {
+                    Text("Facile")
+                }
+            )
+
+            FilterChip(
+                selected = selectedDifficulty == "Medio",
+                onClick = {
+                    selectedDifficulty = "Medio"
+                },
+                label = {
+                    Text("Medio")
+                }
+            )
+
+            FilterChip(
+                selected = selectedDifficulty == "Difficile",
+                onClick = {
+                    selectedDifficulty = "Difficile"
+                },
+                label = {
+                    Text("Difficile")
+                }
+            )
+        }
+
+        Spacer(
+            modifier = Modifier.height(16.dp)
+        )
+
+        Text(
+            text = "Sentieri Disponibili",
+            style = MaterialTheme.typography.titleLarge
+        )
+
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
+        if (filteredTrails.isEmpty()) {
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+
+                Text(
+                    text = "Nessun sentiero trovato",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            items(trails) { trail ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .clickable { onTrailClick(trail) }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+
+        } else {
+
+            LazyColumn(
+                modifier = Modifier.weight(1f)
+            ) {
+
+                items(filteredTrails) { trail ->
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                            .clickable {
+                                onTrailClick(trail)
+                            }
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(trail.name, style = MaterialTheme.typography.titleMedium)
-                            Text("${trail.difficulty} • ${trail.lengthKm} km • ${trail.durationMinutes} min")
-                        }
-                        IconButton(onClick = { onToggleFavorite(trail) }) {
-                            Icon(
-                                imageVector = if (trail.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                tint = if (trail.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment =
+                                Alignment.CenterVertically
+                        ) {
+
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+
+                                Text(
+                                    text = trail.name,
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .titleMedium
+                                )
+
+                                Spacer(
+                                    modifier =
+                                        Modifier.height(4.dp)
+                                )
+
+                                Text(
+                                    text =
+                                        "${trail.difficulty} • " +
+                                                "${trail.lengthKm} km • " +
+                                                "${trail.durationMinutes} min",
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .bodyMedium,
+                                    color =
+                                        MaterialTheme
+                                            .colorScheme
+                                            .onSurfaceVariant
+                                )
+
+                                Spacer(
+                                    modifier =
+                                        Modifier.height(4.dp)
+                                )
+
+                                Text(
+                                    text =
+                                        "⭐ ${trail.points} punti",
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .bodySmall
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    onToggleFavorite(trail)
+                                }
+                            ) {
+
+                                Icon(
+                                    imageVector =
+                                        if (trail.isFavorite) {
+                                            Icons.Default.Favorite
+                                        } else {
+                                            Icons.Default.FavoriteBorder
+                                        },
+                                    contentDescription =
+                                        if (trail.isFavorite) {
+                                            "Rimuovi dai preferiti"
+                                        } else {
+                                            "Aggiungi ai preferiti"
+                                        },
+                                    tint =
+                                        if (trail.isFavorite) {
+                                            MaterialTheme
+                                                .colorScheme
+                                                .primary
+                                        } else {
+                                            MaterialTheme
+                                                .colorScheme
+                                                .onSurfaceVariant
+                                        }
+                                )
+                            }
                         }
                     }
                 }
@@ -232,21 +422,237 @@ fun TrailListScreen(
 }
 
 @Composable
-fun TrailDetailScreen(trail: Trail?, onStartHike: () -> Unit) {
+fun TrailDetailScreen(trail: Trail?,
+                      onStartHike: () -> Unit,
+                      onToggleFavorite: () -> Unit,
+                      onBack: () ->Unit) {
     if (trail == null) return
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text(trail.name, style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(trail.description)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Punti guadagnati: ${trail.points}")
-        Spacer(modifier = Modifier.weight(1f))
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp))  {
+
+        OutlinedButton(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowBack,
+                contentDescription = "Indietro"
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text("Indietro")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyColumn(
+            modifier = Modifier.weight(1f)
+        ) {
+
+            item {
+
+                Text(
+                    text = trail.name,
+                    style = MaterialTheme.typography.headlineMedium
+                )
+
+                Spacer(
+                    modifier = Modifier.height(8.dp)
+                )
+
+                // Difficoltà
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(trail.difficulty)
+                    }
+                )
+
+                Spacer(
+                    modifier = Modifier.height(20.dp)
+                )
+
+                // Informazioni principali
+                Card(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalArrangement =
+                            Arrangement.SpaceEvenly
+                    ) {
+
+                        TrailInfo(
+                            value = "${trail.lengthKm} km",
+                            label = "Distanza"
+                        )
+
+                        TrailInfo(
+                            value = "${trail.durationMinutes} min",
+                            label = "Durata"
+                        )
+
+                        TrailInfo(
+                            value = "${trail.points}",
+                            label = "Punti"
+                        )
+                    }
+                }
+
+                Spacer(
+                    modifier = Modifier.height(20.dp)
+                )
+
+                // Descrizione
+                Text(
+                    text = "Descrizione",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(
+                    modifier = Modifier.height(8.dp)
+                )
+
+                Text(
+                    text = trail.description,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(
+                    modifier = Modifier.height(20.dp)
+                )
+
+                // Dettagli
+                Text(
+                    text = "Informazioni",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(
+                    modifier = Modifier.height(12.dp)
+                )
+
+                TrailDetailRow(
+                    label = "Difficoltà",
+                    value = trail.difficulty
+                )
+
+                TrailDetailRow(
+                    label = "Distanza",
+                    value = "${trail.lengthKm} km"
+                )
+
+                TrailDetailRow(
+                    label = "Durata stimata",
+                    value = "${trail.durationMinutes} minuti"
+                )
+
+                TrailDetailRow(
+                    label = "Punti ottenibili",
+                    value = "${trail.points} punti"
+                )
+
+                Spacer(
+                    modifier = Modifier.height(20.dp)
+                )
+
+                // Preferito
+                OutlinedButton(
+                    onClick = onToggleFavorite,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    Icon(
+                        imageVector =
+                            if (trail.isFavorite) {
+                                Icons.Default.Favorite
+                            } else {
+                                Icons.Default.FavoriteBorder
+                            },
+                        contentDescription = null
+                    )
+
+                    Spacer(
+                        modifier = Modifier.width(8.dp)
+                    )
+
+                    Text(
+                        if (trail.isFavorite) {
+                            "Nei preferiti"
+                        } else {
+                            "Aggiungi ai preferiti"
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(
+            modifier = Modifier.height(12.dp)
+        )
+
+        // Bottone principale
         Button(
             onClick = onStartHike,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Inizia Escursione")
+
+            Text("🥾  Inizia Escursione")
         }
+    }
+}
+
+@Composable
+private fun TrailInfo(
+    value: String,
+    label: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        Spacer(
+            modifier = Modifier.height(4.dp)
+        )
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+
+@Composable
+private fun TrailDetailRow(
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 

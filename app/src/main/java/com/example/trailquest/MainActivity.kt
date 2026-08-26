@@ -138,9 +138,19 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                     composable("detail/{trailId}") { backStackEntry ->
                         val trailId = backStackEntry.arguments?.getString("trailId")
                         val trail = trails.find { it.id == trailId }
-                        TrailDetailScreen(trail = trail, onStartHike = {
-                            activeHikeTrail = trail
-                        })
+                        TrailDetailScreen(trail = trail,
+                            onStartHike = {
+                                activeHikeTrail = trail
+                            },
+                            onToggleFavorite = {
+                                if (trail != null) {
+                                    viewModel.toggleFavorite(trail)
+                                }
+                            },
+                            onBack = {
+                                navController.popBackStack()
+                            }
+                        )
                     }
                     composable(AppDestinations.PROFILE.route) {
                         ProfileScreen(
