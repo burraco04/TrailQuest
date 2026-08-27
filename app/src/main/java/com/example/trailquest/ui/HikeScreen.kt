@@ -23,12 +23,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.trailquest.data.model.Trail
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
+import com.google.android.gms.location.*
 import kotlinx.coroutines.delay
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -48,82 +43,45 @@ fun HikeScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-
     var showCamera by remember { mutableStateOf(false) }
-
-    // Punto di partenza del sentiero
+    
+    // Punto iniziale mappa
     val trailStart = GeoPoint(44.4141, 8.9421)
 
     // Configurazione osmdroid
     Configuration.getInstance().apply {
         userAgentValue = "TrailQuest/1.0 (com.example.trailquest)"
-
         val osmCache = File(context.cacheDir, "osmdroid_tiles")
-
-        if (!osmCache.exists()) {
-            osmCache.mkdirs()
-        }
-
+        if (!osmCache.exists()) osmCache.mkdirs()
         osmdroidTileCache = osmCache
     }
 
-    // Client GPS
-    val fusedLocationClient = remember {
-        LocationServices.getFusedLocationProviderClient(context)
-    }
-
-    // Controllo permessi GPS
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     var locationPermissionsGranted by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    ) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         )
     }
 
-    // Launcher per richiesta permessi GPS
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-
-        locationPermissionsGranted =
-            permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                    permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        locationPermissionsGranted = permissions.values.any { it }
     }
 
-    // Richiediamo il permesso quando si apre l'escursione
     LaunchedEffect(Unit) {
         if (!locationPermissionsGranted) {
-            permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
+            permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
         }
     }
 
-    // Punti realmente percorsi
-    val pathPoints = remember {
-        mutableStateListOf<GeoPoint>()
-    }
+    // Dati Escursione Reali (NON SIMULATI)
+    val pathPoints = remember { mutableStateListOf<GeoPoint>() }
+    var distance by remember { mutableStateOf(0.0) }
+    var secondsElapsed by remember { mutableStateOf(0) }
+    var lastLocation by remember { mutableStateOf<Location?>(null) }
 
-    // Distanza totale in km
-    var distance by remember {
-        mutableStateOf(0.0)
-    }
-
-    // Tempo dell'escursione
-    var secondsElapsed by remember {
-        mutableStateOf(0)
-    }
-
-    // Timer
     LaunchedEffect(Unit) {
         while (true) {
             delay(1000)
@@ -131,382 +89,108 @@ fun HikeScreen(
         }
     }
 
-    /*
-     * Callback chiamato dal GPS ogni volta che
-     * viene ricevuta una nuova posizione.
-     */
     val locationCallback = remember {
-
         object : LocationCallback() {
-
-            override fun onLocationResult(
-                result: LocationResult
-            ) {
-
+            override fun onLocationResult(result: LocationResult) {
                 for (location in result.locations) {
-
-                    val newPoint = GeoPoint(
-                        location.latitude,
-                        location.longitude
-                    )
-
-                    /*
-                     * Se abbiamo già una posizione,
-                     * calcoliamo la distanza percorsa.
-                     */
-                    if (pathPoints.isNotEmpty()) {
-
-                        val previousPoint =
-                            pathPoints.last()
-
-                        val previousLocation =
-                            Location("").apply {
-                                latitude =
-                                    previousPoint.latitude
-
-                                longitude =
-                                    previousPoint.longitude
-                            }
-
-                        val distanceMeters =
-                            previousLocation.distanceTo(location)
-
-                        /*
-                         * Ignoriamo piccoli movimenti
-                         * inferiori a 3 metri.
-                         */
-                        if (distanceMeters >= 3) {
-
-                            distance +=
-                                distanceMeters / 1000.0
-
+                    val newPoint = GeoPoint(location.latitude, location.longitude)
+                    lastLocation?.let { last ->
+                        val distanceMeters = last.distanceTo(location)
+                        if (distanceMeters >= 3.0) { // Ignora micro-movimenti
+                            distance += distanceMeters / 1000.0
                             pathPoints.add(newPoint)
                         }
-
-                    } else {
-
-                        // Prima posizione GPS
+                    } ?: run {
                         pathPoints.add(newPoint)
                     }
+                    lastLocation = location
                 }
             }
         }
     }
 
-    /*
-     * Configurazione aggiornamenti GPS.
-     */
-    val locationRequest = remember {
-
-        LocationRequest.Builder(
-            Priority.PRIORITY_HIGH_ACCURACY,
-            3000L
-        )
-            .setMinUpdateIntervalMillis(2000L)
-            .setWaitForAccurateLocation(false)
-            .build()
-    }
-
-    /*
-     * Avvio tracking GPS.
-     */
     DisposableEffect(locationPermissionsGranted) {
-
         if (locationPermissionsGranted) {
-
+            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L)
+                .setMinUpdateIntervalMillis(3000L)
+                .build()
             try {
-
-                fusedLocationClient.requestLocationUpdates(
-                    locationRequest,
-                    locationCallback,
-                    context.mainLooper
-                )
-
-            } catch (e: SecurityException) {
-                e.printStackTrace()
-            }
+                fusedLocationClient.requestLocationUpdates(request, locationCallback, context.mainLooper)
+            } catch (e: SecurityException) { e.printStackTrace() }
         }
-
-        onDispose {
-
-            fusedLocationClient.removeLocationUpdates(
-                locationCallback
-            )
-        }
+        onDispose { fusedLocationClient.removeLocationUpdates(locationCallback) }
     }
 
-    // Permesso fotocamera
-    val cameraPermissionLauncher =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { isGranted ->
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) showCamera = true }
 
-            if (isGranted) {
-                showCamera = true
-            }
-        }
-
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-
-        /*
-         * MAPPA
-         *
-         * Non creiamo più il MapView con remember.
-         * Viene creato direttamente dentro AndroidView.
-         */
+    Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
             factory = { ctx ->
-
                 MapView(ctx).apply {
-
-                    setTileSource(
-                        TileSourceFactory.MAPNIK
-                    )
-
+                    setTileSource(TileSourceFactory.MAPNIK)
                     setMultiTouchControls(true)
-
                     controller.setZoom(17.0)
+                    controller.setCenter(trailStart)
+                    overlays.add(CopyrightOverlay(ctx).apply { setAlignRight(true) })
+                    
+                    val line = Polyline(this)
+                    line.outlinePaint.color = android.graphics.Color.BLUE
+                    line.outlinePaint.strokeWidth = 8f
+                    overlays.add(line)
 
-                    controller.setCenter(
-                        trailStart
-                    )
-
-                    // Copyright OpenStreetMap
-                    val copyrightOverlay =
-                        CopyrightOverlay(ctx).apply {
-                            setAlignRight(true)
-                        }
-
-                    overlays.add(
-                        copyrightOverlay
-                    )
-
-                    // Marker del punto di partenza
-                    val startMarker =
-                        Marker(this)
-
-                    startMarker.position =
-                        trailStart
-
-                    startMarker.setAnchor(
-                        Marker.ANCHOR_CENTER,
-                        Marker.ANCHOR_BOTTOM
-                    )
-
-                    startMarker.title =
-                        trail.name
-
-                    overlays.add(
-                        startMarker
-                    )
-
-                    // Linea del percorso
-                    val line =
-                        Polyline(this)
-
-                    line.outlinePaint.color =
-                        android.graphics.Color.BLUE
-
-                    line.outlinePaint.strokeWidth =
-                        8f
-
-                    line.setPoints(
-                        pathPoints
-                    )
-
-                    overlays.add(
-                        line
-                    )
-
-                    // Posizione GPS dell'utente
                     if (locationPermissionsGranted) {
-
-                        val locationOverlay =
-                            MyLocationNewOverlay(
-                                GpsMyLocationProvider(ctx),
-                                this
-                            )
-
+                        val locationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(ctx), this)
                         locationOverlay.enableMyLocation()
-
-                        overlays.add(
-                            locationOverlay
-                        )
+                        overlays.add(locationOverlay)
                     }
                 }
             },
+            update = { view ->
+                val line = view.overlays.filterIsInstance<Polyline>().firstOrNull()
+                line?.setPoints(pathPoints.toList())
 
-            update = { view: MapView ->
-
-                // Aggiorna la linea del percorso
-                val line =
-                    view.overlays
-                        .filterIsInstance<Polyline>()
-                        .firstOrNull()
-
-                line?.setPoints(
-                    pathPoints.toList()
-                )
-
+                // Sposta la telecamera sull'ultimo punto registrato
+                pathPoints.lastOrNull()?.let { lastPoint ->
+                    view.controller.animateTo(lastPoint)
+                }
                 view.invalidate()
             },
-
             modifier = Modifier.fillMaxSize()
         )
 
-        /*
-         * FOTOCAMERA
-         */
         if (showCamera) {
-
-            Box(
-                modifier = Modifier.fillMaxSize()
-            ) {
-
+            Box(modifier = Modifier.fillMaxSize()) {
                 CameraPreview()
-
-                IconButton(
-                    onClick = {
-                        showCamera = false
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(32.dp)
-                ) {
-
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Chiudi",
-                        tint = Color.White
-                    )
+                IconButton(onClick = { showCamera = false }, modifier = Modifier.align(Alignment.TopEnd).padding(32.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Chiudi", tint = Color.White)
                 }
             }
-
         } else {
-
-            /*
-             * CONTROLLI INFERIORI
-             */
             Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-
-                horizontalAlignment =
-                    Alignment.CenterHorizontally
+                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp).fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-
-                Row(
-                    horizontalArrangement =
-                        Arrangement.spacedBy(16.dp)
-                ) {
-
-                    // Fotocamera
-                    FloatingActionButton(
-                        onClick = {
-
-                            cameraPermissionLauncher.launch(
-                                Manifest.permission.CAMERA
-                            )
-                        }
-                    ) {
-
-                        Icon(
-                            Icons.Default.CameraAlt,
-                            contentDescription = "Foto"
-                        )
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    FloatingActionButton(onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = "Foto")
                     }
-
-                    // Termina escursione
                     ExtendedFloatingActionButton(
-
-                        onClick = {
-                            onEndHike(distance)
-                        },
-
-                        icon = {
-                            Icon(
-                                Icons.Default.Stop,
-                                contentDescription = null
-                            )
-                        },
-
-                        text = {
-                            Text("Termina")
-                        },
-
-                        containerColor =
-                            MaterialTheme.colorScheme.errorContainer
+                        onClick = { onEndHike(distance) },
+                        icon = { Icon(Icons.Default.Stop, contentDescription = null) },
+                        text = { Text("Termina") },
+                        containerColor = MaterialTheme.colorScheme.errorContainer
                     )
                 }
-
-                Spacer(
-                    modifier = Modifier.height(16.dp)
-                )
-
-                // Informazioni escursione
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-
-                        horizontalArrangement =
-                            Arrangement.SpaceBetween,
-
-                        verticalAlignment =
-                            Alignment.CenterVertically
-                    ) {
-
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
-
-                            Text(
-                                "Distanza",
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .labelMedium
-                            )
-
-                            Text(
-                                "%.2f km".format(distance),
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .titleLarge
-                            )
+                            Text("Distanza", style = MaterialTheme.typography.labelMedium)
+                            Text("%.2f km".format(distance), style = MaterialTheme.typography.titleLarge)
                         }
-
                         Column {
-
-                            val mins =
-                                secondsElapsed / 60
-
-                            val secs =
-                                secondsElapsed % 60
-
-                            Text(
-                                "Tempo",
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .labelMedium
-                            )
-
-                            Text(
-                                "%02d:%02d".format(
-                                    mins,
-                                    secs
-                                ),
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .titleLarge
-                            )
+                            Text("Tempo", style = MaterialTheme.typography.labelMedium)
+                            Text("%02d:%02d".format(secondsElapsed / 60, secondsElapsed % 60), style = MaterialTheme.typography.titleLarge)
                         }
                     }
                 }

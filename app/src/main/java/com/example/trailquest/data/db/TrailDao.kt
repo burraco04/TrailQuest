@@ -16,7 +16,7 @@ interface TrailDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTrail(trail: Trail)
 
-    // Favorites (Local only as per requirements)
+    // Favorites (Filtered by userId)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFavorite(favorite: Favorite)
 

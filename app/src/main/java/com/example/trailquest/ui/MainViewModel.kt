@@ -21,10 +21,6 @@ class MainViewModel(
 
     val currentUser = authRepository.currentUser
 
-    val currentUserId: StateFlow<String?> = currentUser
-        .map { it?.uid }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
     @OptIn(ExperimentalCoroutinesApi::class)
     val userProfile: StateFlow<UserProfile?> = currentUser.flatMapLatest { user ->
         if (user != null) profileRepository.getProfile(user.uid)
@@ -47,22 +43,13 @@ class MainViewModel(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val favoriteIds: StateFlow<Set<String>> = currentUser.flatMapLatest { user ->
-        val uid = user?.uid
-        if (!uid.isNullOrBlank()) {
-            trailDao.getFavoriteIds(uid).map { it.toSet() }
-        } else {
-            flowOf(emptySet())
-        }
+        if (user != null) trailDao.getFavoriteIds(user.uid).map { it.toSet() }
+        else flowOf(emptySet())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun isFavorite(trailId: String): Flow<Boolean> = currentUser.flatMapLatest { user ->
-        val uid = user?.uid
-        if (!uid.isNullOrBlank()) {
-            trailDao.isFavorite(trailId, uid)
-        } else {
-            flowOf(false)
-        }
+    fun isFavorite(trailId: String): Flow<Boolean> {
+        val userId = currentUser.value?.uid ?: return flowOf(false)
+        return trailDao.isFavorite(trailId, userId)
     }
 
     fun onSearchQueryChange(query: String) {
@@ -80,7 +67,10 @@ class MainViewModel(
         viewModelScope.launch {
             val result = authRepository.signUp(email, password, name)
             if (result.isSuccess) {
-                authRepository.currentUser.value?.let { user ->
+                // The currentUser will be updated by AuthStateListener in AuthRepository
+                // We might need to wait for it or use the result. But AuthRepository already updates _currentUser.
+                val user = authRepository.currentUser.value
+                if (user != null) {
                     profileRepository.createProfile(user.uid, email, name)
                 }
             }
@@ -99,13 +89,13 @@ class MainViewModel(
     }
 
     fun toggleFavorite(trail: Trail) {
-        val uid = currentUser.value?.uid ?: return // Se non c'è un utente loggato, non fa nulla
+        val userId = currentUser.value?.uid ?: return
         viewModelScope.launch {
-            val isFav = trailDao.isFavorite(trail.id, uid).first()
+            val isFav = trailDao.isFavorite(trail.id, userId).first()
             if (isFav) {
-                trailDao.deleteFavorite(Favorite(uid, trail.id))
+                trailDao.deleteFavorite(Favorite(userId, trail.id))
             } else {
-                trailDao.insertFavorite(Favorite(uid, trail.id))
+                trailDao.insertFavorite(Favorite(userId, trail.id))
             }
         }
     }
@@ -120,7 +110,7 @@ class MainViewModel(
                 pointsEarned = trail.points,
                 isCompleted = true
             ))
-
+            
             currentUser.value?.let { user ->
                 profileRepository.updateStats(user.uid, trail.points, distanceKm)
             }
