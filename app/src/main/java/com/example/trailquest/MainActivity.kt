@@ -58,8 +58,8 @@ class MainActivity : ComponentActivity() {
                         onLogin = { email, password, onResult ->
                             viewModel.login(email, password, onResult)
                         },
-                        onRegister = { email, password, onResult ->
-                            viewModel.register(email, password, onResult)
+                        onRegister = { name, email, password, onResult ->
+                            viewModel.register(name, email, password, onResult)
                         }
                     )
                 } else {
@@ -80,6 +80,8 @@ fun TrailQuestApp(viewModel: MainViewModel) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
+    val favoriteIds by viewModel.favoriteIds.collectAsState()
 
     var activeHikeTrail by remember { mutableStateOf<com.example.trailquest.data.model.Trail?>(null) }
 
@@ -119,6 +121,7 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                     composable(AppDestinations.HOME.route) {
                         TrailListScreen(
                             trails = trails,
+                            favoriteIds = favoriteIds,
                             searchQuery = searchQuery,
                             onSearchQueryChange = { viewModel.onSearchQueryChange(it) },
                             onTrailClick = { trail ->
@@ -143,6 +146,7 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                     composable(AppDestinations.PROFILE.route) {
                         ProfileScreen(
                             profile = userProfile,
+                            email = currentUser?.email ?: "",
                             onLogout = { viewModel.logout() }
                         )
                     }

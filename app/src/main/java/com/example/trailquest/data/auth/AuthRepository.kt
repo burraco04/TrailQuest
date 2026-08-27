@@ -40,14 +40,13 @@ class AuthRepository {
         }
     }
 
-    suspend fun signUp(email: String, password: String): Result<Unit> {
+    suspend fun signUp(email: String, password: String, name: String): Result<Unit> {
         return try {
             val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
             
-            // Set a default display name if not provided
-            val displayName = email.substringBefore("@")
+            // Use the provided name for the Firebase display name
             result.user?.updateProfile(userProfileChangeRequest {
-                this.displayName = displayName
+                this.displayName = name
             })?.await()
 
             _currentUser.value = mapFirebaseUser(firebaseAuth.currentUser)

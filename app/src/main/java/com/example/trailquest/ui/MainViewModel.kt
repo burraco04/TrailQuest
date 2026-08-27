@@ -21,6 +21,10 @@ class MainViewModel(
 
     val currentUser = authRepository.currentUser
 
+    val currentUserId: StateFlow<String?> = currentUser
+        .map { it?.uid }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val userProfile: StateFlow<UserProfile?> = currentUser.flatMapLatest { user ->
         if (user != null) profileRepository.getProfile(user.uid)
@@ -41,8 +45,25 @@ class MainViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // For display in TrailList - combined flow to check favorite status
-    fun isFavorite(trailId: String): Flow<Boolean> = trailDao.isFavorite(trailId)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val favoriteIds: StateFlow<Set<String>> = currentUser.flatMapLatest { user ->
+        val uid = user?.uid
+        if (!uid.isNullOrBlank()) {
+            trailDao.getFavoriteIds(uid).map { it.toSet() }
+        } else {
+            flowOf(emptySet())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun isFavorite(trailId: String): Flow<Boolean> = currentUser.flatMapLatest { user ->
+        val uid = user?.uid
+        if (!uid.isNullOrBlank()) {
+            trailDao.isFavorite(trailId, uid)
+        } else {
+            flowOf(false)
+        }
+    }
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
@@ -55,13 +76,12 @@ class MainViewModel(
         }
     }
 
-    fun register(email: String, password: String, onResult: (Boolean) -> Unit) {
+    fun register(name: String, email: String, password: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
-            val result = authRepository.signUp(email, password)
+            val result = authRepository.signUp(email, password, name)
             if (result.isSuccess) {
-                // Create Firestore profile for new user
-                currentUser.value?.let { user ->
-                    profileRepository.createProfile(user.uid, user.email, email.substringBefore("@"))
+                authRepository.currentUser.value?.let { user ->
+                    profileRepository.createProfile(user.uid, email, name)
                 }
             }
             onResult(result.isSuccess)
@@ -79,19 +99,20 @@ class MainViewModel(
     }
 
     fun toggleFavorite(trail: Trail) {
+        val uid = currentUser.value?.uid ?: return // Se non c'è un utente loggato, non fa nulla
         viewModelScope.launch {
-            val isFav = trailDao.isFavorite(trail.id).first()
+            val isFav = trailDao.isFavorite(trail.id, uid).first()
             if (isFav) {
-                trailDao.deleteFavorite(Favorite(trail.id))
+                trailDao.deleteFavorite(Favorite(uid, trail.id))
             } else {
-                trailDao.insertFavorite(Favorite(trail.id))
+                trailDao.insertFavorite(Favorite(uid, trail.id))
             }
         }
     }
 
     fun completeHike(trail: Trail, distanceKm: Double) {
         viewModelScope.launch {
-            val hikeId = trailDao.insertHike(Hike(
+            trailDao.insertHike(Hike(
                 trailId = trail.id,
                 startTime = System.currentTimeMillis() - 3600000,
                 endTime = System.currentTimeMillis(),
@@ -99,8 +120,7 @@ class MainViewModel(
                 pointsEarned = trail.points,
                 isCompleted = true
             ))
-            
-            // Sync stats to Firestore
+
             currentUser.value?.let { user ->
                 profileRepository.updateStats(user.uid, trail.points, distanceKm)
             }
@@ -109,7 +129,6 @@ class MainViewModel(
 
     init {
         viewModelScope.launch {
-            // Initial data prep
             trailDao.insertTrail(Trail("1", "Sentiero Azzurro", "Un bellissimo sentiero lungo la costa delle Cinque Terre.", "Facile", 12.0, 180, 50))
             trailDao.insertTrail(Trail("2", "Alta Via dei Monti Liguri", "Percorso impegnativo con panorami mozzafiato sul mare.", "Difficile", 25.0, 480, 150))
             trailDao.insertTrail(Trail("3", "Sentiero del Pellegrino", "Un percorso storico tra Noli e Varigotti.", "Medio", 8.5, 120, 75))

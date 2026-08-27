@@ -23,8 +23,11 @@ interface TrailDao {
     @Delete
     suspend fun deleteFavorite(favorite: Favorite)
 
-    @Query("SELECT EXISTS(SELECT 1 FROM favorites WHERE trailId = :trailId)")
-    fun isFavorite(trailId: String): Flow<Boolean>
+    @Query("SELECT EXISTS(SELECT 1 FROM favorites WHERE trailId = :trailId AND userId = :userId)")
+    fun isFavorite(trailId: String, userId: String): Flow<Boolean>
+
+    @Query("SELECT trailId FROM favorites WHERE userId = :userId")
+    fun getFavoriteIds(userId: String): Flow<List<String>>
 
     // Hikes (Local operational data)
     @Insert(onConflict = OnConflictStrategy.REPLACE)

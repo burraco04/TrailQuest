@@ -1,9 +1,9 @@
 package com.example.trailquest.data.model
 
 import androidx.room.Entity
-import androidx.room.PrimaryKey
 
-@Entity(tableName = "favorites")
+@Entity(tableName = "favorites", primaryKeys = ["userId", "trailId"])
 data class Favorite(
-    @PrimaryKey val trailId: String
+    val userId: String,
+    val trailId: String
 )

@@ -19,9 +19,10 @@ import com.example.trailquest.data.model.Trail
 @Composable
 fun LoginScreen(
     onLogin: (String, String, (Boolean) -> Unit) -> Unit,
-    onRegister: (String, String, (Boolean) -> Unit) -> Unit
+    onRegister: (String, String, String, (Boolean) -> Unit) -> Unit
 ) {
     var isRegistering by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -41,6 +42,21 @@ fun LoginScreen(
         )
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        if (isRegistering) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = {
+                    name = it
+                    message = ""
+                },
+                label = { Text("Nome") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         OutlinedTextField(
             value = email,
@@ -96,7 +112,7 @@ fun LoginScreen(
             onClick = {
                 if (isRegistering) {
                     when {
-                        email.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
+                        name.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
                             message = "Compila tutti i campi"
                             isError = true
                         }
@@ -113,7 +129,7 @@ fun LoginScreen(
                             isError = true
                         }
                         else -> {
-                            onRegister(email, password) { success ->
+                            onRegister(name, email, password) { success ->
                                 if (success) {
                                     message = "Registrazione completata!"
                                     isError = false
@@ -150,6 +166,7 @@ fun LoginScreen(
             onClick = {
                 isRegistering = !isRegistering
                 message = ""
+                name = ""
                 email = ""
                 password = ""
                 confirmPassword = ""
@@ -163,11 +180,24 @@ fun LoginScreen(
 @Composable
 fun TrailListScreen(
     trails: List<Trail>,
+    favoriteIds: Set<String>,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onTrailClick: (Trail) -> Unit,
     onToggleFavorite: (Trail) -> Unit
 ) {
+    var selectedDifficulty by remember {
+        mutableStateOf("Tutti")
+    }
+
+    val filteredTrails = trails.filter { trail ->
+        selectedDifficulty == "Tutti" ||
+                trail.difficulty.equals(
+                    selectedDifficulty,
+                    ignoreCase = true
+                )
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
             text = "Sentieri",
@@ -187,31 +217,70 @@ fun TrailListScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            items(trails) { trail ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .clickable { onTrailClick(trail) }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf("Tutti", "Facile", "Medio", "Difficile").forEach { difficulty ->
+                FilterChip(
+                    selected = selectedDifficulty == difficulty,
+                    onClick = { selectedDifficulty = difficulty },
+                    label = { Text(difficulty) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Sentieri Disponibili",
+            style = MaterialTheme.typography.titleLarge
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (filteredTrails.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Nessun sentiero trovato",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(filteredTrails) { trail ->
+                    val isFav = favoriteIds.contains(trail.id)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp)
+                            .clickable { onTrailClick(trail) }
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(trail.name, style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                text = "${trail.difficulty} • ${trail.lengthKm} km",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(onClick = { onToggleFavorite(trail) }) {
-                            Icon(
-                                imageVector = Icons.Default.FavoriteBorder,
-                                contentDescription = "Favorite"
-                            )
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(trail.name, style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    text = "${trail.difficulty} • ${trail.lengthKm} km",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = { onToggleFavorite(trail) }) {
+                                Icon(
+                                    imageVector = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = "Favorite",
+                                    tint = if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -280,8 +349,54 @@ fun TrailDetailScreen(
 @Composable
 fun ProfileScreen(
     profile: UserProfile?,
+    email: String,
     onLogout: () -> Unit
 ) {
+    val points = profile?.points ?: 0
+    val level = when {
+        points >= 2000 -> 6
+        points >= 1000 -> 5
+        points >= 500 -> 4
+        points >= 250 -> 3
+        points >= 100 -> 2
+        else -> 1
+    }
+
+    val levelName = when (level) {
+        6 -> "Maestro dei sentieri"
+        5 -> "Esperto"
+        4 -> "Avventuriero"
+        3 -> "Escursionista"
+        2 -> "Camminatore"
+        else -> "Esploratore"
+    }
+
+    val nextLevelPoints = when {
+        points < 100 -> 100
+        points < 250 -> 250
+        points < 500 -> 500
+        points < 1000 -> 1000
+        points < 2000 -> 2000
+        else -> 2000
+    }
+
+    val previousLevelPoints = when {
+        points < 100 -> 0
+        points < 250 -> 100
+        points < 500 -> 250
+        points < 1000 -> 500
+        points < 2000 -> 1000
+        else -> 2000
+    }
+
+    val progress = if (level == 6) {
+        1f
+    } else {
+        ((points - previousLevelPoints).toFloat() /
+                (nextLevelPoints - previousLevelPoints))
+            .coerceIn(0f, 1f)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -301,16 +416,59 @@ fun ProfileScreen(
             style = MaterialTheme.typography.headlineSmall
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = email,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Livello $level",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Text(
+                    text = levelName,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = if (level == 6) {
+                        "$points punti"
+                    } else {
+                        "$points / $nextLevelPoints punti"
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(text = "Statistiche", style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Livello: ${profile?.level ?: 1}")
-                Text(text = "Punti: ${profile?.points ?: 0}")
-                Text(text = "Escursioni completate: ${profile?.completedHikes ?: 0}")
-                Text(text = "Distanza totale: ${profile?.totalDistance ?: 0.0} km")
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    StatItem("Escursioni", (profile?.completedHikes ?: 0).toString())
+                    StatItem("Distanza", "${profile?.totalDistance ?: 0.0} km")
+                    StatItem("Punti", points.toString())
+                }
             }
         }
 
@@ -322,7 +480,7 @@ fun ProfileScreen(
                     Text(text = "Badge", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row {
-                        profile.badges.forEach { badge ->
+                        profile.badges.forEach { _ ->
                             Text(text = "🏆 ", style = MaterialTheme.typography.headlineSmall)
                         }
                     }
@@ -339,6 +497,14 @@ fun ProfileScreen(
         ) {
             Text("Logout")
         }
+    }
+}
+
+@Composable
+private fun StatItem(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(text = value, style = MaterialTheme.typography.headlineSmall)
+        Text(text = label, style = MaterialTheme.typography.bodySmall)
     }
 }
 
