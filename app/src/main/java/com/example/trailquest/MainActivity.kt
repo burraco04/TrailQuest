@@ -24,6 +24,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.room.Room
 import com.example.trailquest.data.auth.AuthRepository
+import com.example.trailquest.data.auth.ProfileRepository
 import com.example.trailquest.data.db.AppDatabase
 import com.example.trailquest.data.pref.SettingsRepository
 import com.example.trailquest.ui.*
@@ -36,15 +37,16 @@ class MainActivity : ComponentActivity() {
         val db = Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java, "trailquest-db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
         
         val authRepository = AuthRepository()
+        val profileRepository = ProfileRepository()
         val settingsRepository = SettingsRepository(applicationContext)
         
         enableEdgeToEdge()
         setContent {
             val viewModel: MainViewModel = viewModel(
-                factory = MainViewModelFactory(authRepository, db.trailDao(), settingsRepository)
+                factory = MainViewModelFactory(authRepository, profileRepository, db.trailDao(), settingsRepository)
             )
             
             val isDarkMode by viewModel.isDarkMode.collectAsState()
@@ -54,19 +56,10 @@ class MainActivity : ComponentActivity() {
                 if (currentUser == null) {
                     LoginScreen(
                         onLogin = { email, password, onResult ->
-                            viewModel.login(
-                                email = email,
-                                password = password,
-                                onResult = onResult
-                            )
+                            viewModel.login(email, password, onResult)
                         },
-                        onRegister = { name, email, password, onResult ->
-                            viewModel.register(
-                                name = name,
-                                email = email,
-                                password = password,
-                                onResult = onResult
-                            )
+                        onRegister = { email, password, onResult ->
+                            viewModel.register(email, password, onResult)
                         }
                     )
                 } else {
@@ -85,9 +78,8 @@ fun TrailQuestApp(viewModel: MainViewModel) {
     
     val trails by viewModel.trails.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    val totalPoints by viewModel.totalPoints.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
-    val currentUser by viewModel.currentUser.collectAsState()
+    val userProfile by viewModel.userProfile.collectAsState()
 
     var activeHikeTrail by remember { mutableStateOf<com.example.trailquest.data.model.Trail?>(null) }
 
@@ -138,25 +130,19 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                     composable("detail/{trailId}") { backStackEntry ->
                         val trailId = backStackEntry.arguments?.getString("trailId")
                         val trail = trails.find { it.id == trailId }
-                        TrailDetailScreen(trail = trail,
-                            onStartHike = {
-                                activeHikeTrail = trail
-                            },
-                            onToggleFavorite = {
-                                if (trail != null) {
-                                    viewModel.toggleFavorite(trail)
-                                }
-                            },
-                            onBack = {
-                                navController.popBackStack()
-                            }
+                        val isFavorite by viewModel.isFavorite(trailId ?: "").collectAsState(initial = false)
+                        
+                        TrailDetailScreen(
+                            trail = trail,
+                            isFavorite = isFavorite,
+                            onStartHike = { activeHikeTrail = trail },
+                            onToggleFavorite = { if (trail != null) viewModel.toggleFavorite(trail) },
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable(AppDestinations.PROFILE.route) {
                         ProfileScreen(
-                            username = currentUser?.displayName ?: "User",
-                            email = currentUser?.email ?: "",
-                            points = totalPoints ?: 0,
+                            profile = userProfile,
                             onLogout = { viewModel.logout() }
                         )
                     }
@@ -172,11 +158,7 @@ fun TrailQuestApp(viewModel: MainViewModel) {
     }
 }
 
-enum class AppDestinations(
-    val label: String,
-    val icon: ImageVector,
-    val route: String
-) {
+enum class AppDestinations(val label: String, val icon: ImageVector, val route: String) {
     HOME("Home", Icons.Default.Home, "home"),
     PROFILE("Profile", Icons.Default.AccountBox, "profile"),
     SETTINGS("Settings", Icons.Default.Settings, "settings"),
@@ -184,10 +166,11 @@ enum class AppDestinations(
 
 class MainViewModelFactory(
     private val authRepository: AuthRepository,
+    private val profileRepository: ProfileRepository,
     private val trailDao: com.example.trailquest.data.db.TrailDao,
     private val settingsRepository: SettingsRepository
 ) : androidx.lifecycle.ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-        return MainViewModel(authRepository, trailDao, settingsRepository) as T
+        return MainViewModel(authRepository, profileRepository, trailDao, settingsRepository) as T
     }
 }

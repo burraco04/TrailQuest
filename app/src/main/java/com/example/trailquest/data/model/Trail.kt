@@ -12,6 +12,5 @@ data class Trail(
     val lengthKm: Double,
     val durationMinutes: Int,
     val points: Int,
-    val imageUrl: String? = null,
-    val isFavorite: Boolean = false
+    val imageUrl: String? = null
 )

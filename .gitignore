@@ -14,5 +14,5 @@
 .cxx
 local.properties
 .kotlin/errors
-google-services.json
+app/google-services.json
 AGENTS.md

@@ -3,20 +3,30 @@ package com.example.trailquest.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.trailquest.data.auth.AuthRepository
+import com.example.trailquest.data.auth.ProfileRepository
+import com.example.trailquest.data.auth.UserProfile
 import com.example.trailquest.data.db.TrailDao
-import com.example.trailquest.data.model.Hike
-import com.example.trailquest.data.model.Trail
+import com.example.trailquest.data.model.*
 import com.example.trailquest.data.pref.SettingsRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class MainViewModel(
     private val authRepository: AuthRepository,
+    private val profileRepository: ProfileRepository,
     private val trailDao: TrailDao,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     val currentUser = authRepository.currentUser
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val userProfile: StateFlow<UserProfile?> = currentUser.flatMapLatest { user ->
+        if (user != null) profileRepository.getProfile(user.uid)
+        else flowOf(null)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     val isDarkMode = settingsRepository.isDarkMode.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5000), false
     )
@@ -31,33 +41,29 @@ class MainViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val totalPoints = trailDao.getTotalPoints().stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), 0
-    )
+    // For display in TrailList - combined flow to check favorite status
+    fun isFavorite(trailId: String): Flow<Boolean> = trailDao.isFavorite(trailId)
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
     }
 
-    fun login(
-        email: String,
-        password: String,
-        onResult: (Boolean) -> Unit
-    ) {
+    fun login(email: String, password: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val result = authRepository.login(email, password)
             onResult(result.isSuccess)
         }
     }
 
-    fun register(
-        name: String,
-        email: String,
-        password: String,
-        onResult: (Boolean) -> Unit
-    ) {
+    fun register(email: String, password: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
-            val result = authRepository.signUp(name, email, password)
+            val result = authRepository.signUp(email, password)
+            if (result.isSuccess) {
+                // Create Firestore profile for new user
+                currentUser.value?.let { user ->
+                    profileRepository.createProfile(user.uid, user.email, email.substringBefore("@"))
+                }
+            }
             onResult(result.isSuccess)
         }
     }
@@ -74,21 +80,30 @@ class MainViewModel(
 
     fun toggleFavorite(trail: Trail) {
         viewModelScope.launch {
-            trailDao.updateTrail(trail.copy(isFavorite = !trail.isFavorite))
+            val isFav = trailDao.isFavorite(trail.id).first()
+            if (isFav) {
+                trailDao.deleteFavorite(Favorite(trail.id))
+            } else {
+                trailDao.insertFavorite(Favorite(trail.id))
+            }
         }
     }
 
     fun completeHike(trail: Trail, distanceKm: Double) {
         viewModelScope.launch {
-            val hike = Hike(
+            val hikeId = trailDao.insertHike(Hike(
                 trailId = trail.id,
                 startTime = System.currentTimeMillis() - 3600000,
                 endTime = System.currentTimeMillis(),
                 distanceKm = distanceKm,
                 pointsEarned = trail.points,
                 isCompleted = true
-            )
-            trailDao.insertHike(hike)
+            ))
+            
+            // Sync stats to Firestore
+            currentUser.value?.let { user ->
+                profileRepository.updateStats(user.uid, trail.points, distanceKm)
+            }
         }
     }
 

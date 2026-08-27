@@ -2,6 +2,7 @@ package com.example.trailquest.data.auth
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.userProfileChangeRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.tasks.await
@@ -39,24 +40,17 @@ class AuthRepository {
         }
     }
 
-    suspend fun signUp(
-        name: String,
-        email: String,
-        password: String
-    ): Result<Unit> {
+    suspend fun signUp(email: String, password: String): Result<Unit> {
         return try {
-            val result = firebaseAuth
-                .createUserWithEmailAndPassword(email, password)
-                .await()
-
-            result.user?.updateProfile(
-                com.google.firebase.auth.userProfileChangeRequest {
-                    displayName = name
-                }
-            )?.await()
+            val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+            
+            // Set a default display name if not provided
+            val displayName = email.substringBefore("@")
+            result.user?.updateProfile(userProfileChangeRequest {
+                this.displayName = displayName
+            })?.await()
 
             _currentUser.value = mapFirebaseUser(firebaseAuth.currentUser)
-
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
