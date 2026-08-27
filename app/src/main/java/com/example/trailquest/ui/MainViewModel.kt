@@ -21,6 +21,10 @@ class MainViewModel(
 
     val currentUser = authRepository.currentUser
 
+    val currentUserId: StateFlow<String?> = currentUser
+        .map { it?.uid }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val userProfile: StateFlow<UserProfile?> = currentUser.flatMapLatest { user ->
         if (user != null) profileRepository.getProfile(user.uid)
@@ -43,13 +47,22 @@ class MainViewModel(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val favoriteIds: StateFlow<Set<String>> = currentUser.flatMapLatest { user ->
-        if (user != null) trailDao.getFavoriteIds(user.uid).map { it.toSet() }
-        else flowOf(emptySet())
+        val uid = user?.uid
+        if (!uid.isNullOrBlank()) {
+            trailDao.getFavoriteIds(uid).map { it.toSet() }
+        } else {
+            flowOf(emptySet())
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    fun isFavorite(trailId: String): Flow<Boolean> {
-        val userId = currentUser.value?.uid ?: return flowOf(false)
-        return trailDao.isFavorite(trailId, userId)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun isFavorite(trailId: String): Flow<Boolean> = currentUser.flatMapLatest { user ->
+        val uid = user?.uid
+        if (!uid.isNullOrBlank()) {
+            trailDao.isFavorite(trailId, uid)
+        } else {
+            flowOf(false)
+        }
     }
 
     fun onSearchQueryChange(query: String) {
@@ -67,10 +80,7 @@ class MainViewModel(
         viewModelScope.launch {
             val result = authRepository.signUp(email, password, name)
             if (result.isSuccess) {
-                // The currentUser will be updated by AuthStateListener in AuthRepository
-                // We might need to wait for it or use the result. But AuthRepository already updates _currentUser.
-                val user = authRepository.currentUser.value
-                if (user != null) {
+                authRepository.currentUser.value?.let { user ->
                     profileRepository.createProfile(user.uid, email, name)
                 }
             }
@@ -89,28 +99,60 @@ class MainViewModel(
     }
 
     fun toggleFavorite(trail: Trail) {
-        val userId = currentUser.value?.uid ?: return
+        val uid = currentUser.value?.uid ?: return
         viewModelScope.launch {
-            val isFav = trailDao.isFavorite(trail.id, userId).first()
+            val isFav = trailDao.isFavorite(trail.id, uid).first()
             if (isFav) {
-                trailDao.deleteFavorite(Favorite(userId, trail.id))
+                trailDao.deleteFavorite(Favorite(uid, trail.id))
             } else {
-                trailDao.insertFavorite(Favorite(userId, trail.id))
+                trailDao.insertFavorite(Favorite(uid, trail.id))
             }
         }
     }
 
-    fun completeHike(trail: Trail, distanceKm: Double) {
+    fun saveLocationPoint(hikeId: Long, latitude: Double, longitude: Double) {
         viewModelScope.launch {
-            trailDao.insertHike(Hike(
-                trailId = trail.id,
-                startTime = System.currentTimeMillis() - 3600000,
-                endTime = System.currentTimeMillis(),
-                distanceKm = distanceKm,
-                pointsEarned = trail.points,
-                isCompleted = true
-            ))
-            
+            trailDao.insertHikeLocation(
+                HikeLocation(
+                    hikeId = hikeId,
+                    latitude = latitude,
+                    longitude = longitude,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    fun startHike(hikeId: Long, trailId: String) {
+        viewModelScope.launch {
+            trailDao.insertHike(
+                Hike(
+                    id = hikeId,
+                    trailId = trailId,
+                    startTime = System.currentTimeMillis(),
+                    endTime = null,
+                    distanceKm = 0.0,
+                    pointsEarned = 0,
+                    isCompleted = false
+                )
+            )
+        }
+    }
+
+    fun completeHike(hikeId: Long, trail: Trail, startTime: Long, distanceKm: Double) {
+        viewModelScope.launch {
+            trailDao.insertHike(
+                Hike(
+                    id = hikeId,
+                    trailId = trail.id,
+                    startTime = startTime,
+                    endTime = System.currentTimeMillis(),
+                    distanceKm = distanceKm,
+                    pointsEarned = trail.points,
+                    isCompleted = true
+                )
+            )
+
             currentUser.value?.let { user ->
                 profileRepository.updateStats(user.uid, trail.points, distanceKm)
             }

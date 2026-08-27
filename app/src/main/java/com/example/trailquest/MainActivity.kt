@@ -87,10 +87,16 @@ fun TrailQuestApp(viewModel: MainViewModel) {
 
     if (activeHikeTrail != null) {
         HikeScreen(
-            trail = activeHikeTrail!!, 
-            onEndHike = { distance -> 
-                viewModel.completeHike(activeHikeTrail!!, distance)
-                activeHikeTrail = null 
+            trail = activeHikeTrail!!,
+            onStartHike = { hikeId, trailId ->
+                viewModel.startHike(hikeId, trailId)
+            },
+            onSaveLocation = { hikeId, lat, lng ->
+                viewModel.saveLocationPoint(hikeId, lat, lng)
+            },
+            onEndHike = { hikeId, startTime, distance ->
+                viewModel.completeHike(hikeId, activeHikeTrail!!, startTime, distance)
+                activeHikeTrail = null
             }
         )
     } else {

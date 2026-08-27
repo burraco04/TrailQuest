@@ -30,7 +30,6 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.CopyrightOverlay
-import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
@@ -39,16 +38,23 @@ import java.io.File
 @Composable
 fun HikeScreen(
     trail: Trail,
-    onEndHike: (Double) -> Unit
+    onStartHike: (hikeId: Long, trailId: String) -> Unit,
+    onSaveLocation: (hikeId: Long, lat: Double, lng: Double) -> Unit,
+    onEndHike: (hikeId: Long, startTime: Long, distance: Double) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var showCamera by remember { mutableStateOf(false) }
-    
-    // Punto iniziale mappa
+
+    val hikeId = remember { System.currentTimeMillis() }
+    val startTime = remember { System.currentTimeMillis() }
+
     val trailStart = GeoPoint(44.4141, 8.9421)
 
-    // Configurazione osmdroid
+    LaunchedEffect(hikeId) {
+        onStartHike(hikeId, trail.id)
+    }
+
     Configuration.getInstance().apply {
         userAgentValue = "TrailQuest/1.0 (com.example.trailquest)"
         val osmCache = File(context.cacheDir, "osmdroid_tiles")
@@ -60,7 +66,7 @@ fun HikeScreen(
     var locationPermissionsGranted by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         )
     }
 
@@ -76,11 +82,26 @@ fun HikeScreen(
         }
     }
 
-    // Dati Escursione Reali (NON SIMULATI)
     val pathPoints = remember { mutableStateListOf<GeoPoint>() }
     var distance by remember { mutableStateOf(0.0) }
     var secondsElapsed by remember { mutableStateOf(0) }
     var lastLocation by remember { mutableStateOf<Location?>(null) }
+    var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
+
+    // Lifecycle observer per MapView (osmdroid)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> mapViewInstance?.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapViewInstance?.onPause()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -94,9 +115,12 @@ fun HikeScreen(
             override fun onLocationResult(result: LocationResult) {
                 for (location in result.locations) {
                     val newPoint = GeoPoint(location.latitude, location.longitude)
+
+                    onSaveLocation(hikeId, location.latitude, location.longitude)
+
                     lastLocation?.let { last ->
                         val distanceMeters = last.distanceTo(location)
-                        if (distanceMeters >= 3.0) { // Ignora micro-movimenti
+                        if (distanceMeters >= 3.0) {
                             distance += distanceMeters / 1000.0
                             pathPoints.add(newPoint)
                         }
@@ -127,12 +151,13 @@ fun HikeScreen(
         AndroidView(
             factory = { ctx ->
                 MapView(ctx).apply {
+                    mapViewInstance = this
                     setTileSource(TileSourceFactory.MAPNIK)
                     setMultiTouchControls(true)
                     controller.setZoom(17.0)
                     controller.setCenter(trailStart)
                     overlays.add(CopyrightOverlay(ctx).apply { setAlignRight(true) })
-                    
+
                     val line = Polyline(this)
                     line.outlinePaint.color = android.graphics.Color.BLUE
                     line.outlinePaint.strokeWidth = 8f
@@ -149,7 +174,7 @@ fun HikeScreen(
                 val line = view.overlays.filterIsInstance<Polyline>().firstOrNull()
                 line?.setPoints(pathPoints.toList())
 
-                // Sposta la telecamera sull'ultimo punto registrato
+                // Segue la posizione corrente centrando la telecamera
                 pathPoints.lastOrNull()?.let { lastPoint ->
                     view.controller.animateTo(lastPoint)
                 }
@@ -175,7 +200,7 @@ fun HikeScreen(
                         Icon(Icons.Default.CameraAlt, contentDescription = "Foto")
                     }
                     ExtendedFloatingActionButton(
-                        onClick = { onEndHike(distance) },
+                        onClick = { onEndHike(hikeId, startTime, distance) },
                         icon = { Icon(Icons.Default.Stop, contentDescription = null) },
                         text = { Text("Termina") },
                         containerColor = MaterialTheme.colorScheme.errorContainer
