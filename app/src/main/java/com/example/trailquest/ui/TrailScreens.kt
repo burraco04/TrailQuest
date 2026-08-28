@@ -439,23 +439,29 @@ fun ProfileScreen(
                     .clickable { showOptionsDialog = true },
                 contentAlignment = Alignment.Center
             ) {
-                val photoFile = if (profile.profileImageUrl?.isNotBlank() ?: false) File(profile.profileImageUrl) else null
+                val photoPath = profile.profileImageUrl
 
-                // Usiamo profile.profileImageUrl come chiave di remember per forzare il ricaricamento del Bitmap
-                if (photoFile != null && photoFile.exists()) {
-                    val bitmap = remember(profile.profileImageUrl, photoFile.lastModified()) {
-                        BitmapFactory.decodeFile(photoFile.absolutePath)
-                    }
-                    if (bitmap != null) {
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "Foto Profilo",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Text(text = "👤", style = MaterialTheme.typography.displayLarge)
-                    }
+                // Caricamento nativo sicuro con gestione eccezioni
+                val profileBitmap = remember(photoPath) {
+                    if (photoPath?.isNotBlank() ?: false) {
+                        val file = File(photoPath)
+                        if (file.exists()) {
+                            try {
+                                BitmapFactory.decodeFile(file.absolutePath)
+                            } catch (e: Exception) {
+                                null
+                            }
+                        } else null
+                    } else null
+                }
+
+                if (profileBitmap != null) {
+                    Image(
+                        bitmap = profileBitmap.asImageBitmap(),
+                        contentDescription = "Foto Profilo",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
                 } else {
                     Text(text = "👤", style = MaterialTheme.typography.displayLarge)
                 }
@@ -523,7 +529,7 @@ fun ProfileScreen(
             }
         }
 
-        // Pop-up di selezione per scattare una nuova foto
+        // Pop-up di selezione
         if (showOptionsDialog) {
             AlertDialog(
                 onDismissRequest = { showOptionsDialog = false },
@@ -533,7 +539,6 @@ fun ProfileScreen(
                     TextButton(
                         onClick = {
                             showOptionsDialog = false
-                            showCameraPreview = true
                             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                         }
                     ) {
@@ -548,11 +553,17 @@ fun ProfileScreen(
             )
         }
 
-        // Preview Fotocamera per scatto e salvataggio foto profilo
+        // Preview Fotocamera
         if (showCameraPreview) {
             val photoFile = remember {
-                File(context.filesDir, "profile_picture.jpg").apply {
-                    if (exists()) delete()
+                // Eliminiamo l'eventuale foto profilo precedente per risparmiare memoria
+                if (profile.profileImageUrl?.isNotBlank() ?: false) {
+                    val oldFile = File(profile.profileImageUrl)
+                    if (oldFile.exists()) oldFile.delete()
+                }
+
+                // Generiamo un file con timestamp unico per forzare la ricarica dello stato di Compose
+                File(context.filesDir, "profile_${System.currentTimeMillis()}.jpg").apply {
                     createNewFile()
                 }
             }
@@ -560,8 +571,6 @@ fun ProfileScreen(
             CameraPreview(
                 outputFile = photoFile,
                 onPhotoSaved = { savedFile ->
-                    // 1. Il file è stato scritto su disco
-                    // 2. Notifichiamo il percorso assoluto a Firestore e aggiorniamo la UI
                     onUpdateProfilePicture(savedFile.absolutePath)
                     showCameraPreview = false
                 },
