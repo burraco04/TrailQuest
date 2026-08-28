@@ -33,22 +33,22 @@ import com.example.trailquest.ui.theme.TrailQuestTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         val db = Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java, "trailquest-db"
         ).fallbackToDestructiveMigration().build()
-        
+
         val authRepository = AuthRepository()
         val profileRepository = ProfileRepository()
         val settingsRepository = SettingsRepository(applicationContext)
-        
+
         enableEdgeToEdge()
         setContent {
             val viewModel: MainViewModel = viewModel(
                 factory = MainViewModelFactory(authRepository, profileRepository, db.trailDao(), settingsRepository)
             )
-            
+
             val isDarkMode by viewModel.isDarkMode.collectAsState()
             val currentUser by viewModel.currentUser.collectAsState()
 
@@ -75,7 +75,6 @@ fun TrailQuestApp(viewModel: MainViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    
     val trails by viewModel.trails.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
@@ -93,6 +92,9 @@ fun TrailQuestApp(viewModel: MainViewModel) {
             },
             onSaveLocation = { hikeId, lat, lng ->
                 viewModel.saveLocationPoint(hikeId, lat, lng)
+            },
+            onPhotoTaken = { hikeId, filePath ->
+                viewModel.saveHikePhoto(hikeId, filePath)
             },
             onEndHike = { hikeId, startTime, distance ->
                 viewModel.completeHike(hikeId, activeHikeTrail!!, startTime, distance)
@@ -140,7 +142,7 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                         val trailId = backStackEntry.arguments?.getString("trailId")
                         val trail = trails.find { it.id == trailId }
                         val isFavorite by viewModel.isFavorite(trailId ?: "").collectAsState(initial = false)
-                        
+
                         TrailDetailScreen(
                             trail = trail,
                             isFavorite = isFavorite,
@@ -150,11 +152,16 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                         )
                     }
                     composable(AppDestinations.PROFILE.route) {
-                        ProfileScreen(
-                            profile = userProfile,
-                            email = currentUser?.email ?: "",
-                            onLogout = { viewModel.logout() }
-                        )
+                        userProfile?.let { profile ->
+                            ProfileScreen(
+                                profile = profile,
+                                email = currentUser?.email ?: "",
+                                onUpdateProfilePicture = { photoPath ->
+                                    viewModel.updateProfilePicture(photoPath)
+                                },
+                                onLogout = { viewModel.logout() }
+                            )
+                        }
                     }
                     composable(AppDestinations.SETTINGS.route) {
                         SettingsScreen(

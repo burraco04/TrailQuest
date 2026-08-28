@@ -8,13 +8,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -40,6 +38,7 @@ fun HikeScreen(
     trail: Trail,
     onStartHike: (hikeId: Long, trailId: String) -> Unit,
     onSaveLocation: (hikeId: Long, lat: Double, lng: Double) -> Unit,
+    onPhotoTaken: (hikeId: Long, filePath: String) -> Unit,
     onEndHike: (hikeId: Long, startTime: Long, distance: Double) -> Unit
 ) {
     val context = LocalContext.current
@@ -49,11 +48,11 @@ fun HikeScreen(
     val hikeId = remember { System.currentTimeMillis() }
     val startTime = remember { System.currentTimeMillis() }
 
-    val trailStart = GeoPoint(44.4141, 8.9421)
-
     LaunchedEffect(hikeId) {
         onStartHike(hikeId, trail.id)
     }
+
+    val trailStart = GeoPoint(44.4141, 8.9421)
 
     Configuration.getInstance().apply {
         userAgentValue = "TrailQuest/1.0 (com.example.trailquest)"
@@ -88,7 +87,6 @@ fun HikeScreen(
     var lastLocation by remember { mutableStateOf<Location?>(null) }
     var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
 
-    // Lifecycle observer per MapView (osmdroid)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -174,7 +172,6 @@ fun HikeScreen(
                 val line = view.overlays.filterIsInstance<Polyline>().firstOrNull()
                 line?.setPoints(pathPoints.toList())
 
-                // Segue la posizione corrente centrando la telecamera
                 pathPoints.lastOrNull()?.let { lastPoint ->
                     view.controller.animateTo(lastPoint)
                 }
@@ -184,12 +181,23 @@ fun HikeScreen(
         )
 
         if (showCamera) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                CameraPreview()
-                IconButton(onClick = { showCamera = false }, modifier = Modifier.align(Alignment.TopEnd).padding(32.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Chiudi", tint = Color.White)
+            val photoFile = remember {
+                File(context.filesDir, "hike_${hikeId}_${System.currentTimeMillis()}.jpg").apply {
+                    if (exists()) delete()
+                    createNewFile()
                 }
             }
+
+            CameraPreview(
+                outputFile = photoFile,
+                onPhotoSaved = { savedFile ->
+                    onPhotoTaken(hikeId, savedFile.absolutePath)
+                    showCamera = false
+                },
+                onClose = {
+                    showCamera = false
+                }
+            )
         } else {
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp).fillMaxWidth(),

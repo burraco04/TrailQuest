@@ -110,19 +110,6 @@ class MainViewModel(
         }
     }
 
-    fun saveLocationPoint(hikeId: Long, latitude: Double, longitude: Double) {
-        viewModelScope.launch {
-            trailDao.insertHikeLocation(
-                HikeLocation(
-                    hikeId = hikeId,
-                    latitude = latitude,
-                    longitude = longitude,
-                    timestamp = System.currentTimeMillis()
-                )
-            )
-        }
-    }
-
     fun startHike(hikeId: Long, trailId: String) {
         viewModelScope.launch {
             trailDao.insertHike(
@@ -136,6 +123,40 @@ class MainViewModel(
                     isCompleted = false
                 )
             )
+        }
+    }
+
+    fun saveLocationPoint(hikeId: Long, latitude: Double, longitude: Double) {
+        viewModelScope.launch {
+            trailDao.insertHikeLocation(
+                HikeLocation(
+                    hikeId = hikeId,
+                    latitude = latitude,
+                    longitude = longitude,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    // --- Salva foto dell'escursione in Room ---
+    fun saveHikePhoto(hikeId: Long, filePath: String) {
+        viewModelScope.launch {
+            trailDao.insertHikePhoto(
+                HikePhoto(
+                    hikeId = hikeId,
+                    filePath = filePath,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    // Aggiorna la foto profilo su Cloud Firestore
+    fun updateProfilePicture(photoUrl: String) {
+        val uid = currentUser.value?.uid ?: return
+        viewModelScope.launch {
+            profileRepository.updateProfilePicture(uid, photoUrl)
         }
     }
 

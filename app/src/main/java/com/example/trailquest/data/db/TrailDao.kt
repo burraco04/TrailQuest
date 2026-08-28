@@ -32,4 +32,11 @@ interface TrailDao {
 
     @Query("SELECT * FROM hike_locations WHERE hikeId = :hikeId ORDER BY timestamp ASC")
     fun getHikeLocations(hikeId: Long): Flow<List<HikeLocation>>
+
+    // --- Gestione Foto Escursioni (Room) ---
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHikePhoto(photo: HikePhoto)
+
+    @Query("SELECT * FROM hike_photos WHERE hikeId = :hikeId ORDER BY timestamp DESC")
+    fun getHikePhotos(hikeId: Long): Flow<List<HikePhoto>>
 }

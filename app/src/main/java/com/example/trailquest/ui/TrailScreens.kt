@@ -1,20 +1,31 @@
 package com.example.trailquest.ui
 
+import android.Manifest
+import android.graphics.BitmapFactory
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.trailquest.data.auth.UserProfile
 import com.example.trailquest.data.model.Trail
+import java.io.File
 
 @Composable
 fun LoginScreen(
@@ -348,17 +359,29 @@ fun TrailDetailScreen(
 
 @Composable
 fun ProfileScreen(
-    profile: UserProfile?,
+    profile: UserProfile,
     email: String,
+    onUpdateProfilePicture: (String) -> Unit,
     onLogout: () -> Unit
 ) {
-    val points = profile?.points ?: 0
+    val context = LocalContext.current
+    var showOptionsDialog by remember { mutableStateOf(false) }
+    var showCameraPreview by remember { mutableStateOf(false) }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            showCameraPreview = true
+        }
+    }
+
     val level = when {
-        points >= 2000 -> 6
-        points >= 1000 -> 5
-        points >= 500 -> 4
-        points >= 250 -> 3
-        points >= 100 -> 2
+        profile.points >= 2000 -> 6
+        profile.points >= 1000 -> 5
+        profile.points >= 500 -> 4
+        profile.points >= 250 -> 3
+        profile.points >= 100 -> 2
         else -> 1
     }
 
@@ -372,130 +395,180 @@ fun ProfileScreen(
     }
 
     val nextLevelPoints = when {
-        points < 100 -> 100
-        points < 250 -> 250
-        points < 500 -> 500
-        points < 1000 -> 1000
-        points < 2000 -> 2000
+        profile.points < 100 -> 100
+        profile.points < 250 -> 250
+        profile.points < 500 -> 500
+        profile.points < 1000 -> 1000
+        profile.points < 2000 -> 2000
         else -> 2000
     }
 
     val previousLevelPoints = when {
-        points < 100 -> 0
-        points < 250 -> 100
-        points < 500 -> 250
-        points < 1000 -> 500
-        points < 2000 -> 1000
+        profile.points < 100 -> 0
+        profile.points < 250 -> 100
+        profile.points < 500 -> 250
+        profile.points < 1000 -> 500
+        profile.points < 2000 -> 1000
         else -> 2000
     }
 
     val progress = if (level == 6) {
         1f
     } else {
-        ((points - previousLevelPoints).toFloat() /
+        ((profile.points - previousLevelPoints).toFloat() /
                 (nextLevelPoints - previousLevelPoints))
             .coerceIn(0f, 1f)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(text = "Profilo", style = MaterialTheme.typography.headlineMedium)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = "Profilo", style = MaterialTheme.typography.headlineMedium)
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Text(text = "👤", style = MaterialTheme.typography.displayLarge)
+            // Avatar / Foto Profilo dell'utente
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .clickable { showOptionsDialog = true },
+                contentAlignment = Alignment.Center
+            ) {
+                val photoFile = if (profile.profileImageUrl?.isNotBlank() ?: false) File(profile.profileImageUrl) else null
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = profile?.username ?: "Esploratore",
-            style = MaterialTheme.typography.headlineSmall
-        )
-
-        Text(
-            text = email,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Livello $level",
-                    style = MaterialTheme.typography.titleLarge
-                )
-
-                Text(
-                    text = levelName,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = if (level == 6) {
-                        "$points punti"
-                    } else {
-                        "$points / $nextLevelPoints punti"
+                // Usiamo profile.profileImageUrl come chiave di remember per forzare il ricaricamento del Bitmap
+                if (photoFile != null && photoFile.exists()) {
+                    val bitmap = remember(profile.profileImageUrl, photoFile.lastModified()) {
+                        BitmapFactory.decodeFile(photoFile.absolutePath)
                     }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = "Statistiche", style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    StatItem("Escursioni", (profile?.completedHikes ?: 0).toString())
-                    StatItem("Distanza", "${profile?.totalDistance ?: 0.0} km")
-                    StatItem("Punti", points.toString())
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = "Foto Profilo",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(text = "👤", style = MaterialTheme.typography.displayLarge)
+                    }
+                } else {
+                    Text(text = "👤", style = MaterialTheme.typography.displayLarge)
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        if (profile?.badges?.isNotEmpty() == true) {
+            Text(
+                text = profile.username,
+                style = MaterialTheme.typography.headlineSmall
+            )
+
+            Text(
+                text = email,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "Badge", style = MaterialTheme.typography.titleLarge)
+                    Text(text = "Livello $level", style = MaterialTheme.typography.titleLarge)
+                    Text(text = levelName, style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LinearProgressIndicator(
+                        progress = progress,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row {
-                        profile.badges.forEach { _ ->
-                            Text(text = "🏆 ", style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        text = if (level == 6) {
+                            "${profile.points} punti"
+                        } else {
+                            "${profile.points} / $nextLevelPoints punti"
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (profile.badges.isNotEmpty()) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(text = "Badge", style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row {
+                            profile.badges.forEach { _ ->
+                                Text(text = "🏆 ", style = MaterialTheme.typography.headlineSmall)
+                            }
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = onLogout,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Logout")
+            }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        // Pop-up di selezione per scattare una nuova foto
+        if (showOptionsDialog) {
+            AlertDialog(
+                onDismissRequest = { showOptionsDialog = false },
+                title = { Text("Foto Profilo") },
+                text = { Text("Vuoi scattare una nuova foto da impostare come foto profilo?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showOptionsDialog = false
+                            showCameraPreview = true
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    ) {
+                        Text("Modifica foto")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showOptionsDialog = false }) {
+                        Text("Annulla")
+                    }
+                }
+            )
+        }
 
-        Button(
-            onClick = onLogout,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-        ) {
-            Text("Logout")
+        // Preview Fotocamera per scatto e salvataggio foto profilo
+        if (showCameraPreview) {
+            val photoFile = remember {
+                File(context.filesDir, "profile_picture.jpg").apply {
+                    if (exists()) delete()
+                    createNewFile()
+                }
+            }
+
+            CameraPreview(
+                outputFile = photoFile,
+                onPhotoSaved = { savedFile ->
+                    // 1. Il file è stato scritto su disco
+                    // 2. Notifichiamo il percorso assoluto a Firestore e aggiorniamo la UI
+                    onUpdateProfilePicture(savedFile.absolutePath)
+                    showCameraPreview = false
+                },
+                onClose = {
+                    showCameraPreview = false
+                }
+            )
         }
     }
 }
