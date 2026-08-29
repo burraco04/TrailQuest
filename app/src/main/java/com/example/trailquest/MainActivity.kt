@@ -97,7 +97,14 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                 viewModel.saveHikePhoto(hikeId, filePath)
             },
             onEndHike = { hikeId, startTime, distance ->
-                viewModel.completeHike(hikeId, activeHikeTrail!!, startTime, distance)
+                viewModel.completeHike(
+                    hikeId,
+                    activeHikeTrail!!,
+                    startTime,
+                    distance
+                )
+            },
+            onExitHike = {
                 activeHikeTrail = null
             }
         )

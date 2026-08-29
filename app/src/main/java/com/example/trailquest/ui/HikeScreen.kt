@@ -32,6 +32,8 @@ import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.io.File
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 
 @Composable
 fun HikeScreen(
@@ -39,11 +41,15 @@ fun HikeScreen(
     onStartHike: (hikeId: Long, trailId: String) -> Unit,
     onSaveLocation: (hikeId: Long, lat: Double, lng: Double) -> Unit,
     onPhotoTaken: (hikeId: Long, filePath: String) -> Unit,
-    onEndHike: (hikeId: Long, startTime: Long, distance: Double) -> Unit
+    onEndHike: (hikeId: Long, startTime: Long, distance: Double) -> Unit,
+    onExitHike: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var showCamera by remember { mutableStateOf(false) }
+    var showEndDialog by remember { mutableStateOf(false) }
+    var isPaused by remember { mutableStateOf(false) }
+    var isCompleted by remember { mutableStateOf(false) }
 
     val hikeId = remember { System.currentTimeMillis() }
     val startTime = remember { System.currentTimeMillis() }
@@ -101,8 +107,8 @@ fun HikeScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        while (true) {
+    LaunchedEffect(isPaused, isCompleted) {
+        while (!isPaused && !isCompleted) {
             delay(1000)
             secondsElapsed++
         }
@@ -111,6 +117,11 @@ fun HikeScreen(
     val locationCallback = remember {
         object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
+
+                if (isPaused || isCompleted) {
+                    return
+                }
+
                 for (location in result.locations) {
                     val newPoint = GeoPoint(location.latitude, location.longitude)
 
@@ -131,8 +142,12 @@ fun HikeScreen(
         }
     }
 
-    DisposableEffect(locationPermissionsGranted) {
-        if (locationPermissionsGranted) {
+    DisposableEffect(
+        locationPermissionsGranted,
+        isPaused,
+        isCompleted
+    ) {
+        if (locationPermissionsGranted && !isPaused && !isCompleted) {
             val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L)
                 .setMinUpdateIntervalMillis(3000L)
                 .build()
@@ -144,6 +159,126 @@ fun HikeScreen(
     }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) showCamera = true }
+
+    if (isCompleted) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
+                    Text(
+                        text = "🎉",
+                        style = MaterialTheme.typography.displayMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Escursione completata!",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = trail.name,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "📏",
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+
+                            Text(
+                                "%.2f km".format(distance),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+
+                            Text(
+                                "Distanza",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "⏱️",
+                                style = MaterialTheme.typography.headlineSmall
+                            )
+
+                            Text(
+                                "%02d:%02d".format(
+                                    secondsElapsed / 60,
+                                    secondsElapsed % 60
+                                ),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+
+                            Text(
+                                "Tempo",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "⭐ +${trail.points} punti",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+
+                            Text(
+                                text = "Punti guadagnati",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = onExitHike,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Torna ai sentieri")
+                    }
+                }
+            }
+        }
+
+        return
+    }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
@@ -180,6 +315,25 @@ fun HikeScreen(
             modifier = Modifier.fillMaxSize()
         )
 
+        Card(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(16.dp)
+        ) {
+            Text(
+                text = if (isPaused) {
+                    "⏸ Escursione in pausa"
+                } else {
+                    "🟢 Escursione in corso"
+                },
+                modifier = Modifier.padding(
+                    horizontal = 16.dp,
+                    vertical = 10.dp
+                ),
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+
         if (showCamera) {
             val photoFile = remember {
                 File(context.filesDir, "hike_${hikeId}_${System.currentTimeMillis()}.jpg").apply {
@@ -203,17 +357,69 @@ fun HikeScreen(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    FloatingActionButton(onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = "Foto")
-                    }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+
+                    // PAUSA / RIPRENDI
                     ExtendedFloatingActionButton(
-                        onClick = { onEndHike(hikeId, startTime, distance) },
-                        icon = { Icon(Icons.Default.Stop, contentDescription = null) },
-                        text = { Text("Termina") },
-                        containerColor = MaterialTheme.colorScheme.errorContainer
+                        onClick = {
+                            isPaused = !isPaused
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = if (isPaused) {
+                                    Icons.Default.PlayArrow
+                                } else {
+                                    Icons.Default.Pause
+                                },
+                                contentDescription = null
+                            )
+                        },
+                        text = {
+                            Text(
+                                if (isPaused) {
+                                    "Riprendi"
+                                } else {
+                                    "Pausa"
+                                }
+                            )
+                        }
+                    )
+
+                    // FOTO
+                    FloatingActionButton(
+                        onClick = {
+                            cameraPermissionLauncher.launch(
+                                Manifest.permission.CAMERA
+                            )
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = "Foto"
+                        )
+                    }
+
+                    // TERMINA
+                    ExtendedFloatingActionButton(
+                        onClick = {
+                            showEndDialog = true
+                        },
+                        icon = {
+                            Icon(
+                                Icons.Default.Stop,
+                                contentDescription = null
+                            )
+                        },
+                        text = {
+                            Text("Termina")
+                        },
+                        containerColor =
+                            MaterialTheme.colorScheme.errorContainer
                     )
                 }
+
                 Spacer(modifier = Modifier.height(16.dp))
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -228,6 +434,50 @@ fun HikeScreen(
                     }
                 }
             }
+        }
+
+        if (showEndDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showEndDialog = false
+                },
+                title = {
+                    Text("Terminare l'escursione?")
+                },
+                text = {
+                    Text(
+                        "Sei sicuro di voler terminare questa escursione?"
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+
+                            showEndDialog = false
+
+                            isPaused = true
+                            isCompleted = true
+
+                            onEndHike(
+                                hikeId,
+                                startTime,
+                                distance
+                            )
+                        }
+                    ) {
+                        Text("Termina")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showEndDialog = false
+                        }
+                    ) {
+                        Text("Annulla")
+                    }
+                }
+            )
         }
     }
 }
