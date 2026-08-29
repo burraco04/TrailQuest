@@ -3,9 +3,14 @@ package com.example.trailquest.ui
 import android.Manifest
 import android.graphics.BitmapFactory
 import android.graphics.Bitmap
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.trailquest.data.auth.UserProfile
+import com.example.trailquest.data.model.HikePhoto
 import com.example.trailquest.data.model.Trail
 import java.io.File
 
@@ -305,12 +311,19 @@ fun TrailListScreen(
 fun TrailDetailScreen(
     trail: Trail?,
     isFavorite: Boolean,
+    userPhotos: List<HikePhoto>,
     onStartHike: () -> Unit,
     onToggleFavorite: () -> Unit,
     onBack: () -> Unit
 ) {
     if (trail == null) return
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+    ) {
         IconButton(onClick = onBack) {
             Icon(Icons.Default.ArrowBack, contentDescription = "Indietro")
         }
@@ -344,6 +357,27 @@ fun TrailDetailScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // SEZIONE FOTO SCATTATE (NUOVA)
+        if (userPhotos.isNotEmpty()) {
+            Text(
+                text = "Le tue foto del sentiero",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                items(userPhotos.size) { index ->
+                    PhotoItem(photoPath = userPhotos[index].filePath)
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(text = "Descrizione", style = MaterialTheme.typography.titleMedium)
         Text(text = trail.description, style = MaterialTheme.typography.bodyLarge)
 
@@ -362,6 +396,7 @@ fun TrailDetailScreen(
 fun ProfileScreen(
     profile: UserProfile,
     email: String,
+    allUserPhotos: List<HikePhoto>,
     onUpdateProfilePicture: (String) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -425,6 +460,7 @@ fun ProfileScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -515,7 +551,25 @@ fun ProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // SEZIONE TUTTE LE TUE FOTO (NUOVA)
+            if (allUserPhotos.isNotEmpty()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(text = "Le tue foto", style = MaterialTheme.typography.titleLarge)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(allUserPhotos.size) { index ->
+                            PhotoItem(photoPath = allUserPhotos[index].filePath)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = onLogout,
@@ -524,6 +578,7 @@ fun ProfileScreen(
             ) {
                 Text("Logout")
             }
+        }
         }
 
         // Pop-up di selezione
@@ -577,7 +632,41 @@ fun ProfileScreen(
             )
         }
     }
+
+// COMPONENTE HELPER PER RENDERING IMMAGINI LOCALI SENZA CRASH
+@Composable
+fun PhotoItem(photoPath: String) {
+    val bitmap = remember(photoPath) {
+        if (photoPath.isNotBlank()) {
+            val file = File(photoPath)
+            if (file.exists()) {
+                decodeSampledBitmapFromFile(file.absolutePath, 300, 300)
+            } else null
+        } else null
+    }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "Foto Utente",
+            modifier = Modifier
+                .size(120.dp)
+                .clip(MaterialTheme.shapes.medium),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .clip(MaterialTheme.shapes.medium)
+                .background(Color.Gray),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = Color.White)
+        }
+    }
 }
+
 
 
 private fun decodeSampledBitmapFromFile(filePath: String, reqWidth: Int = 500, reqHeight: Int = 500): Bitmap? {

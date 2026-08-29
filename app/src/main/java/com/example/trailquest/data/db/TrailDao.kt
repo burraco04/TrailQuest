@@ -37,6 +37,10 @@ interface TrailDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHikePhoto(photo: HikePhoto)
 
-    @Query("SELECT * FROM hike_photos WHERE hikeId = :hikeId ORDER BY timestamp DESC")
-    fun getHikePhotos(hikeId: Long): Flow<List<HikePhoto>>
+    @Query("SELECT * FROM hike_photos WHERE userId = :userId AND EXISTS (SELECT 1 FROM hikes WHERE hikes.id = hike_photos.hikeId AND hikes.trailId = :trailId) ORDER BY timestamp DESC")
+    fun getPhotosByTrailAndUser(trailId: String, userId: String): Flow<List<HikePhoto>>
+
+    // Recupera TUTTE le foto di un utente specifico
+    @Query("SELECT * FROM hike_photos WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getPhotosByUser(userId: String): Flow<List<HikePhoto>>
 }

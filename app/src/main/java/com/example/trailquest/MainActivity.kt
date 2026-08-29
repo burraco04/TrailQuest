@@ -81,7 +81,7 @@ fun TrailQuestApp(viewModel: MainViewModel) {
     val userProfile by viewModel.userProfile.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val favoriteIds by viewModel.favoriteIds.collectAsState()
-
+    val allUserPhotos by viewModel.allUserPhotos.collectAsState()
     var activeHikeTrail by remember { mutableStateOf<com.example.trailquest.data.model.Trail?>(null) }
 
     if (activeHikeTrail != null) {
@@ -149,10 +149,12 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                         val trailId = backStackEntry.arguments?.getString("trailId")
                         val trail = trails.find { it.id == trailId }
                         val isFavorite by viewModel.isFavorite(trailId ?: "").collectAsState(initial = false)
+                        val trailPhotos by viewModel.getUserPhotosForTrail(trailId ?: "").collectAsState(initial = emptyList())
 
                         TrailDetailScreen(
                             trail = trail,
                             isFavorite = isFavorite,
+                            userPhotos = trailPhotos,
                             onStartHike = { activeHikeTrail = trail },
                             onToggleFavorite = { if (trail != null) viewModel.toggleFavorite(trail) },
                             onBack = { navController.popBackStack() }
@@ -163,6 +165,7 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                             ProfileScreen(
                                 profile = profile,
                                 email = currentUser?.email ?: "",
+                                allUserPhotos = allUserPhotos,
                                 onUpdateProfilePicture = { photoPath ->
                                     viewModel.updateProfilePicture(photoPath)
                                 },
