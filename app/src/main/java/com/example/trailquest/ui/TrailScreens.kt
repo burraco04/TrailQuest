@@ -204,19 +204,33 @@ fun TrailListScreen(
     onTrailClick: (Trail) -> Unit,
     onToggleFavorite: (Trail) -> Unit
 ) {
-    var selectedDifficulty by remember {
+    var selectedFilter by remember {
         mutableStateOf("Tutti")
     }
 
     val filteredTrails = trails.filter { trail ->
-        selectedDifficulty == "Tutti" ||
+        when (selectedFilter) {
+            "Tutti" -> true
+
+            "Preferiti" -> {
+                favoriteIds.contains(trail.id)
+            }
+
+            else -> {
                 trail.difficulty.equals(
-                    selectedDifficulty,
+                    selectedFilter,
                     ignoreCase = true
                 )
+            }
+        }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+
         Text(
             text = "Sentieri",
             style = MaterialTheme.typography.headlineMedium
@@ -224,26 +238,59 @@ fun TrailListScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // RICERCA
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Cerca sentieri...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Cerca") },
+            placeholder = {
+                Text("Cerca sentieri...")
+            },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = "Cerca"
+                )
+            },
             singleLine = true
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // FILTRI
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            listOf("Tutti", "Facile", "Medio", "Difficile").forEach { difficulty ->
+            items(
+                listOf(
+                    "Tutti",
+                    "Preferiti",
+                    "Facile",
+                    "Medio",
+                    "Difficile"
+                )
+            ) { filter ->
+
                 FilterChip(
-                    selected = selectedDifficulty == difficulty,
-                    onClick = { selectedDifficulty = difficulty },
-                    label = { Text(difficulty) }
+                    selected = selectedFilter == filter,
+                    onClick = {
+                        selectedFilter = filter
+                    },
+                    label = {
+                        Text(filter)
+                    },
+                    leadingIcon = if (filter == "Preferiti") {
+                        {
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = null,
+                                tint = Color.Red
+                            )
+                        }
+                    } else {
+                        null
+                    }
                 )
             }
         }
@@ -251,13 +298,19 @@ fun TrailListScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Sentieri Disponibili",
+            text = if (selectedFilter == "Preferiti") {
+                "I tuoi preferiti"
+            } else {
+                "Sentieri Disponibili"
+            },
             style = MaterialTheme.typography.titleLarge
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        // LISTA
         if (filteredTrails.isEmpty()) {
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -265,38 +318,78 @@ fun TrailListScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Nessun sentiero trovato",
+                    text = if (selectedFilter == "Preferiti") {
+                        "Non hai ancora aggiunto sentieri ai preferiti"
+                    } else {
+                        "Nessun sentiero trovato"
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
         } else {
-            LazyColumn(modifier = Modifier.weight(1f)) {
+
+            LazyColumn(
+                modifier = Modifier.weight(1f)
+            ) {
+
                 items(filteredTrails) { trail ->
+
                     val isFav = favoriteIds.contains(trail.id)
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 6.dp)
-                            .clickable { onTrailClick(trail) }
+                            .clickable {
+                                onTrailClick(trail)
+                            }
                     ) {
+
                         Row(
                             modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(trail.name, style = MaterialTheme.typography.titleMedium)
+
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+
+                                Text(
+                                    text = trail.name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+
                                 Text(
                                     text = "${trail.difficulty} • ${trail.lengthKm} km",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            IconButton(onClick = { onToggleFavorite(trail) }) {
+
+                            IconButton(
+                                onClick = {
+                                    onToggleFavorite(trail)
+                                }
+                            ) {
+
                                 Icon(
-                                    imageVector = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = "Favorite",
-                                    tint = if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    imageVector = if (isFav) {
+                                        Icons.Default.Favorite
+                                    } else {
+                                        Icons.Default.FavoriteBorder
+                                    },
+                                    contentDescription = if (isFav) {
+                                        "Rimuovi dai preferiti"
+                                    } else {
+                                        "Aggiungi ai preferiti"
+                                    },
+                                    tint = if (isFav) {
+                                        Color.Red
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
                                 )
                             }
                         }
