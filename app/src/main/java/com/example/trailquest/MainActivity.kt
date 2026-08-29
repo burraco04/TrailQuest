@@ -163,6 +163,7 @@ fun TrailQuestApp(viewModel: MainViewModel) {
                     composable(AppDestinations.PROFILE.route) {
                         userProfile?.let { profile ->
                             ProfileScreen(
+                                viewModel = viewModel,
                                 profile = profile,
                                 email = currentUser?.email ?: "",
                                 allUserPhotos = allUserPhotos,

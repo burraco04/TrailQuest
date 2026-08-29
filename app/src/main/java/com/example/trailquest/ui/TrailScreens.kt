@@ -25,8 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.trailquest.data.auth.UserProfile
@@ -487,6 +489,7 @@ fun TrailDetailScreen(
 
 @Composable
 fun ProfileScreen(
+    viewModel: MainViewModel,
     profile: UserProfile,
     email: String,
     allUserPhotos: List<HikePhoto>,
@@ -661,6 +664,12 @@ fun ProfileScreen(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // AGGIUNGI QUESTA RIGA PER MOSTRARE LA DASHBOARD:
+            ProfileDashboardSection(viewModel = viewModel)
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -725,6 +734,96 @@ fun ProfileScreen(
             )
         }
     }
+
+@Composable
+fun ProfileDashboardSection(viewModel: MainViewModel) {
+    val lastTrail by viewModel.lastTrail.collectAsState()
+    val hardestTrail by viewModel.hardestTrail.collectAsState()
+    val fastestTrail by viewModel.fastestTrail.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "Statistiche Percorsi",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        // 1. Ultimo percorso
+        DashboardStatCard(
+            title = "Ultimo percorso svolto",
+            trail = lastTrail,
+            icon = Icons.Default.History
+        )
+
+        // 2. Percorso più difficile
+        DashboardStatCard(
+            title = "Percorso più difficile",
+            trail = hardestTrail,
+            icon = Icons.Default.FitnessCenter
+        )
+
+        // 3. Percorso più veloce
+        DashboardStatCard(
+            title = "Percorso più veloce",
+            trail = fastestTrail,
+            icon = Icons.Default.Speed
+        )
+    }
+}
+
+@Composable
+fun DashboardStatCard(
+    title: String,
+    trail: Trail?,
+    icon: ImageVector
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = trail?.name ?: "Nessun percorso registrato",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (trail != null) {
+                    Text(
+                        text = "Difficoltà: ${trail.difficulty} • Lunghezza: ${trail.lengthKm} km",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
 
 // COMPONENTE HELPER PER RENDERING IMMAGINI LOCALI SENZA CRASH
 @Composable

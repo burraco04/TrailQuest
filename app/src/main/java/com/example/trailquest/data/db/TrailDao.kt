@@ -43,4 +43,41 @@ interface TrailDao {
     // Recupera TUTTE le foto di un utente specifico
     @Query("SELECT * FROM hike_photos WHERE userId = :userId ORDER BY timestamp DESC")
     fun getPhotosByUser(userId: String): Flow<List<HikePhoto>>
+
+    @Query("""
+        SELECT T.* FROM trails T
+        INNER JOIN hikes H ON T.id = H.trailId
+        WHERE H.userId = :userId AND H.endTime IS NOT NULL
+        ORDER BY H.endTime DESC
+        LIMIT 1
+    """)
+    fun getLastCompletedTrail(userId: String): Flow<Trail?>
+
+    // Percorso più difficile concluso dall'utente
+    // (Ordina la difficoltà in base alla scala: 'Difficile' > 'Medio' > 'Facile')
+    @Query("""
+        SELECT T.* FROM trails T
+        INNER JOIN hikes H ON T.id = H.trailId
+        WHERE H.userId = :userId AND H.endTime IS NOT NULL
+        ORDER BY 
+            CASE T.difficulty
+                WHEN 'Difficile' THEN 3
+                WHEN 'Medio' THEN 2
+                WHEN 'Facile' THEN 1
+                ELSE 0
+            END DESC,
+            H.endTime DESC
+        LIMIT 1
+    """)
+    fun getMostDifficultCompletedTrail(userId: String): Flow<Trail?>
+
+    // 3. Percorso completato più velocemente dall'utente (calcolando la differenza di tempo)
+    @Query("""
+        SELECT T.* FROM trails T
+        INNER JOIN hikes H ON T.id = H.trailId
+        WHERE H.userId = :userId AND H.endTime IS NOT NULL
+        ORDER BY (H.endTime - H.startTime) ASC
+        LIMIT 1
+    """)
+    fun getFastestCompletedTrail(userId: String): Flow<Trail?>
 }
