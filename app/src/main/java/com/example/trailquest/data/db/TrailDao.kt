@@ -80,4 +80,16 @@ interface TrailDao {
         LIMIT 1
     """)
     fun getFastestCompletedTrail(userId: String): Flow<Trail?>
+
+    // Conta il numero di escursioni completate
+    @Query("SELECT COUNT(*) FROM hikes WHERE userId = :userId AND endTime IS NOT NULL")
+    fun getCompletedHikesCount(userId: String): Flow<Int>
+
+    // Calcola i km totali
+    @Query("SELECT SUM(distanceKm) FROM hikes WHERE userId = :userId AND endTime IS NOT NULL")
+    fun getTotalDistance(userId: String): Flow<Double?>
+
+    // Calcola i minuti totali
+    @Query("SELECT SUM(durationMinutes) FROM hikes WHERE userId = :userId AND endTime IS NOT NULL")
+    fun getTotalDuration(userId: String): Flow<Int?>
 }

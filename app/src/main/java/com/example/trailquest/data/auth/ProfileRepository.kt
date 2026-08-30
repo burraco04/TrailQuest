@@ -26,7 +26,6 @@ class ProfileRepository {
         val profile = UserProfile(
             username = username,
             points = 0,
-            badges = emptyList(),
             profileImageUrl = ""
         )
         firestore.collection("users").document(uid).set(profile).await()

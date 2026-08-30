@@ -1,5 +1,10 @@
 package com.example.trailquest.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.trailquest.data.auth.AuthRepository
@@ -11,6 +16,13 @@ import com.example.trailquest.data.pref.SettingsRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+
+data class Badge(
+    val name: String,
+    val description: String,
+    val icon: ImageVector,
+    val isUnlocked: Boolean
+)
 
 class MainViewModel(
     private val authRepository: AuthRepository,
@@ -81,6 +93,42 @@ class MainViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = null
     )
+
+    val userBadges: StateFlow<List<Badge>> = currentUserId.flatMapLatest { userId ->
+        if (userId.isNullOrEmpty()) {
+            flowOf(emptyList())
+        } else {
+            combine(
+                trailDao.getCompletedHikesCount(userId),
+                trailDao.getTotalDistance(userId),
+                trailDao.getTotalDuration(userId)
+            ) { count, distance, duration ->
+                val dist = distance ?: 0.0
+                val dur = duration ?: 0
+
+                listOf(
+                    Badge(
+                        name = "Primo Passo",
+                        description = "Completa la tua prima escursione",
+                        icon = Icons.Default.DirectionsWalk,
+                        isUnlocked = count >= 1
+                    ),
+                    Badge(
+                        name = "Camminatore Instancabile",
+                        description = "Percorri almeno 50 km totali",
+                        icon = Icons.Default.Star,
+                        isUnlocked = dist >= 50.0
+                    ),
+                    Badge(
+                        name = "Veterano dei Sentieri",
+                        description = "Cammina per oltre 10 ore (600 min)",
+                        icon = Icons.Default.EmojiEvents,
+                        isUnlocked = dur >= 600
+                    )
+                )
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     @OptIn(ExperimentalCoroutinesApi::class)
     fun isFavorite(trailId: String): Flow<Boolean> = currentUser.flatMapLatest { user ->
         val uid = user?.uid
