@@ -361,7 +361,6 @@ fun HikeScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
 
-                    // PAUSA / RIPRENDI
                     ExtendedFloatingActionButton(
                         onClick = {
                             isPaused = !isPaused
@@ -387,7 +386,6 @@ fun HikeScreen(
                         }
                     )
 
-                    // FOTO
                     FloatingActionButton(
                         onClick = {
                             cameraPermissionLauncher.launch(
@@ -401,7 +399,6 @@ fun HikeScreen(
                         )
                     }
 
-                    // TERMINA
                     ExtendedFloatingActionButton(
                         onClick = {
                             showEndDialog = true

@@ -67,7 +67,6 @@ fun CameraPreview(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Pulsante di scatto diretto
         IconButton(
             onClick = {
                 val outputOptions = ImageCapture.OutputFileOptions.Builder(outputFile).build()
@@ -96,7 +95,6 @@ fun CameraPreview(
             )
         }
 
-        // Pulsante Chiudi
         IconButton(
             onClick = onClose,
             modifier = Modifier

@@ -211,7 +211,6 @@ class MainViewModel(
         }
     }
 
-    // Aggiorna il salvataggio per includere lo userId
     fun saveHikePhoto(hikeId: Long, filePath: String) {
         val uid = currentUser.value?.uid ?: return
         viewModelScope.launch {

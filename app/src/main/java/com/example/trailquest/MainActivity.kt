@@ -27,7 +27,13 @@ import com.example.trailquest.data.auth.AuthRepository
 import com.example.trailquest.data.auth.ProfileRepository
 import com.example.trailquest.data.db.AppDatabase
 import com.example.trailquest.data.pref.SettingsRepository
-import com.example.trailquest.ui.*
+import com.example.trailquest.ui.HikeScreen
+import com.example.trailquest.ui.MainViewModel
+import com.example.trailquest.ui.screens.LoginScreen
+import com.example.trailquest.ui.screens.ProfileScreen
+import com.example.trailquest.ui.screens.SettingsScreen
+import com.example.trailquest.ui.screens.TrailDetailScreen
+import com.example.trailquest.ui.screens.TrailListScreen
 import com.example.trailquest.ui.theme.TrailQuestTheme
 
 class MainActivity : ComponentActivity() {
