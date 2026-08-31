@@ -2,7 +2,8 @@ package com.example.trailquest.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -51,6 +52,7 @@ fun TrailListScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
 
@@ -150,11 +152,11 @@ fun TrailListScreen(
 
         } else {
 
-            LazyColumn(
-                modifier = Modifier.weight(1f)
+            Column(
+                modifier = Modifier.fillMaxWidth()
             ) {
 
-                items(filteredTrails) { trail ->
+                filteredTrails.forEach { trail ->
 
                     val isFav = favoriteIds.contains(trail.id)
 
