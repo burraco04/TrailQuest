@@ -40,7 +40,6 @@ class ProfileRepository {
         }.await()
     }
 
-    // Aggiorna l'URL/path della foto profilo su Cloud Firestore
     suspend fun updateProfilePicture(uid: String, photoUrl: String) {
         firestore.collection("users").document(uid)
             .update("profileImageUrl", photoUrl)

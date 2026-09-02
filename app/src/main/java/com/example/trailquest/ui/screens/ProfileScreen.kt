@@ -107,7 +107,6 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Avatar / Foto Profilo dell'utente
             Box(
                 modifier = Modifier
                     .size(100.dp)
@@ -117,7 +116,6 @@ fun ProfileScreen(
             ) {
                 val photoPath = profile.profileImageUrl
 
-                // Decodifica l'immagine riducendone la risoluzione a 500x500px in memoria
                 val profileBitmap = remember(photoPath) {
                     if (photoPath?.isNotBlank() ?: false) {
                         val file = File(photoPath)
@@ -176,7 +174,6 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // SEZIONE TUTTE LE TUE FOTO (NUOVA)
             if (allUserPhotos.isNotEmpty()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(text = "Le tue foto", style = MaterialTheme.typography.titleLarge)
@@ -193,7 +190,6 @@ fun ProfileScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // AGGIUNGI QUESTA RIGA PER MOSTRARE LA DASHBOARD:
             ProfileDashboardSection(viewModel = viewModel)
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -212,7 +208,6 @@ fun ProfileScreen(
         }
     }
 
-    // Pop-up di selezione
     if (showOptionsDialog) {
         AlertDialog(
             onDismissRequest = { showOptionsDialog = false },
@@ -236,16 +231,13 @@ fun ProfileScreen(
         )
     }
 
-    // Preview Fotocamera
     if (showCameraPreview) {
         val photoFile = remember {
-            // Eliminiamo l'eventuale foto profilo precedente per risparmiare memoria
             if (profile.profileImageUrl?.isNotBlank() ?: false) {
                 val oldFile = File(profile.profileImageUrl)
                 if (oldFile.exists()) oldFile.delete()
             }
 
-            // Generiamo un file con timestamp unico per forzare la ricarica dello stato di Compose
             File(context.filesDir, "profile_${System.currentTimeMillis()}.jpg").apply {
                 createNewFile()
             }

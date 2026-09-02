@@ -225,20 +225,18 @@ class MainViewModel(
         }
     }
 
-    // Flusso: Tutte le foto dell'utente loggato
     @OptIn(ExperimentalCoroutinesApi::class)
     val allUserPhotos: StateFlow<List<HikePhoto>> = currentUser.flatMapLatest { user ->
         if (user != null) trailDao.getPhotosByUser(user.uid)
         else flowOf(emptyList())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Flusso: Foto dell'utente loggato per un sentiero specifico
     @OptIn(ExperimentalCoroutinesApi::class)
     fun getUserPhotosForTrail(trailId: String): Flow<List<HikePhoto>> = currentUser.flatMapLatest { user ->
         if (user != null) trailDao.getPhotosByTrailAndUser(trailId, user.uid)
         else flowOf(emptyList())
     }
-    // Aggiorna la foto profilo su Cloud Firestore
+
     fun updateProfilePicture(photoUrl: String) {
         val uid = currentUser.value?.uid ?: return
         viewModelScope.launch {

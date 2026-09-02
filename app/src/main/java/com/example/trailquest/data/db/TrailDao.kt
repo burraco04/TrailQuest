@@ -33,14 +33,12 @@ interface TrailDao {
     @Query("SELECT * FROM hike_locations WHERE hikeId = :hikeId ORDER BY timestamp ASC")
     fun getHikeLocations(hikeId: Long): Flow<List<HikeLocation>>
 
-    // --- Gestione Foto Escursioni (Room) ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHikePhoto(photo: HikePhoto)
 
     @Query("SELECT * FROM hike_photos WHERE userId = :userId AND EXISTS (SELECT 1 FROM hikes WHERE hikes.id = hike_photos.hikeId AND hikes.trailId = :trailId) ORDER BY timestamp DESC")
     fun getPhotosByTrailAndUser(trailId: String, userId: String): Flow<List<HikePhoto>>
 
-    // Recupera TUTTE le foto di un utente specifico
     @Query("SELECT * FROM hike_photos WHERE userId = :userId ORDER BY timestamp DESC")
     fun getPhotosByUser(userId: String): Flow<List<HikePhoto>>
 
@@ -53,8 +51,6 @@ interface TrailDao {
     """)
     fun getLastCompletedTrail(userId: String): Flow<Trail?>
 
-    // Percorso più difficile concluso dall'utente
-    // (Ordina la difficoltà in base alla scala: 'Difficile' > 'Medio' > 'Facile')
     @Query("""
         SELECT T.* FROM trails T
         INNER JOIN hikes H ON T.id = H.trailId
@@ -71,7 +67,6 @@ interface TrailDao {
     """)
     fun getMostDifficultCompletedTrail(userId: String): Flow<Trail?>
 
-    // 3. Percorso completato più velocemente dall'utente (calcolando la differenza di tempo)
     @Query("""
         SELECT T.* FROM trails T
         INNER JOIN hikes H ON T.id = H.trailId
@@ -81,15 +76,12 @@ interface TrailDao {
     """)
     fun getFastestCompletedTrail(userId: String): Flow<Trail?>
 
-    // Conta il numero di escursioni completate
     @Query("SELECT COUNT(*) FROM hikes WHERE userId = :userId AND endTime IS NOT NULL")
     fun getCompletedHikesCount(userId: String): Flow<Int>
 
-    // Calcola i km totali
     @Query("SELECT SUM(distanceKm) FROM hikes WHERE userId = :userId AND endTime IS NOT NULL")
     fun getTotalDistance(userId: String): Flow<Double?>
 
-    // Calcola i minuti totali
     @Query("SELECT SUM(durationMinutes) FROM hikes WHERE userId = :userId AND endTime IS NOT NULL")
     fun getTotalDuration(userId: String): Flow<Int?>
 }

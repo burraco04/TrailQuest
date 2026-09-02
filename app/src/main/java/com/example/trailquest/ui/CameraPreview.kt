@@ -97,13 +97,11 @@ fun CameraPreview(
             modifier = Modifier.fillMaxSize()
         )
 
-        // SCATTA FOTO
         IconButton(
             onClick = {
 
                 val view = previewView ?: return@IconButton
 
-                // Imposta l'orientamento attuale
                 imageCapture.targetRotation =
                     view.display?.rotation
                         ?: Surface.ROTATION_0
@@ -123,19 +121,13 @@ fun CameraPreview(
                         ) {
 
                             try {
-                                // Corregge fisicamente la rotazione
-                                // dell'immagine
                                 fixImageRotation(outputFile)
 
-                                // Solo dopo la correzione
-                                // comunichiamo che la foto è pronta
                                 onPhotoSaved(outputFile)
 
                             } catch (e: Exception) {
                                 e.printStackTrace()
 
-                                // Anche in caso di errore
-                                // restituiamo comunque il file
                                 onPhotoSaved(outputFile)
                             }
                         }
@@ -159,7 +151,6 @@ fun CameraPreview(
             )
         }
 
-        // CHIUDI
         IconButton(
             onClick = onClose,
             modifier = Modifier
@@ -175,12 +166,6 @@ fun CameraPreview(
     }
 }
 
-
-/**
- * Legge l'orientamento EXIF della foto,
- * ruota fisicamente il Bitmap e salva nuovamente
- * il JPEG con orientamento normale.
- */
 private fun fixImageRotation(file: File) {
 
     if (!file.exists()) return
@@ -192,8 +177,6 @@ private fun fixImageRotation(file: File) {
         ExifInterface.ORIENTATION_NORMAL
     )
 
-    // Se non c'è nessuna rotazione da applicare,
-    // non facciamo nulla.
     if (orientation == ExifInterface.ORIENTATION_NORMAL) {
         return
     }
@@ -264,8 +247,6 @@ private fun fixImageRotation(file: File) {
 
     rotatedBitmap.recycle()
 
-    // Dopo aver ruotato fisicamente l'immagine,
-    // impostiamo EXIF su orientamento normale.
     val fixedExif = ExifInterface(file.absolutePath)
 
     fixedExif.setAttribute(
