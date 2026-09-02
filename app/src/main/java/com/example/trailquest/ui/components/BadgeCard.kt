@@ -48,7 +48,6 @@ fun BadgesDashboardSection(viewModel: MainViewModel) {
 
 @Composable
 fun BadgeCard(badge: Badge) {
-    // Opacità ridotta per i badge non ancora ottenuti
     val alpha = if (badge.isUnlocked) 1f else 0.4f
     val containerColor = if (badge.isUnlocked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
 

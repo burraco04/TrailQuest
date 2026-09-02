@@ -35,21 +35,18 @@ fun ProfileDashboardSection(viewModel: MainViewModel) {
             fontWeight = FontWeight.Bold
         )
 
-        // 1. Ultimo percorso
         DashboardStatCard(
             title = "Ultimo percorso svolto",
             trail = lastTrail,
             icon = Icons.Default.History
         )
 
-        // 2. Percorso più difficile
         DashboardStatCard(
             title = "Percorso più difficile",
             trail = hardestTrail,
             icon = Icons.Default.FitnessCenter
         )
 
-        // 3. Percorso più veloce
         DashboardStatCard(
             title = "Percorso più veloce",
             trail = fastestTrail,

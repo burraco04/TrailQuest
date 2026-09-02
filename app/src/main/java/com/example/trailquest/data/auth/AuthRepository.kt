@@ -43,8 +43,7 @@ class AuthRepository {
     suspend fun signUp(email: String, password: String, name: String): Result<Unit> {
         return try {
             val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
-            
-            // Use the provided name for the Firebase display name
+
             result.user?.updateProfile(userProfileChangeRequest {
                 this.displayName = name
             })?.await()
